@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# working files produced while using the skill
+work/
+*_humanized.*
+*.json
+
+.DS_Store
+Thumbs.db
+desktop.ini
