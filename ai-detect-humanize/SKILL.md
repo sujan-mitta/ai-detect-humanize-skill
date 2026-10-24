@@ -34,11 +34,14 @@ Keep a `work/` folder next to the user's file (or in a scratch dir) for intermed
 python scripts/ai_score.py work/source.txt --report work/before_report.md --json work/before.json
 ```
 
-This prints an overall score (0–100, higher = more AI-like), a per-section breakdown, the signal values, and the most suspicious sentences. Then add your own read: skim the flagged sections and note what a human editor would notice that a script can't (generic claims with no specifics, symmetrical "On one hand… on the other" structure, hollow conclusions, a summary that repeats the intro).
+This prints an overall score (0–100, higher = more AI-like), 14 signals ranked by how much they drove the score (rhythm, stock vocabulary, participial tails, contrast frames, repeated openers, paragraph templates, hedges, chatbot leftovers, formatting…), example matches, a per-section breakdown, and the most suspicious sentences with reasons.
+
+Then do your own audit with `references/ai-patterns.md` — the full catalog of how language models write, organized by vocabulary, sentence templates, grammar, rhythm, paragraph and document structure, formatting, tone and genre. You are a language model yourself, so you can recognize these habits from the inside; use that. The script catches surface patterns; you catch what it can't: the topic-sentence → support → wrap-up paragraph template, both-sidesing, generic examples, synonym cycling, a conclusion that echoes the intro, uniform warmth, symmetric sections. Run through the checklist in §11 of the catalog and note which categories are "heavy".
 
 If the user only asked for detection, stop here and present:
 - Overall verdict + score, with the caveat above (one sentence, not a paragraph)
 - Top 3–5 signals that drove the score, in plain language
+- The pattern categories from your audit that are heavy (e.g. "every paragraph ends with a wrap-up sentence", "8 participial tails in 600 words")
 - The most AI-sounding passages, quoted, with why each one reads that way
 - Offer to humanize
 
@@ -56,7 +59,9 @@ For very long documents (say, 15+ chunks), it's reasonable to use subagents in p
 
 ## Step 3 — Humanize
 
-Read `references/humanizing-guide.md` before rewriting — it lists the AI patterns to remove and the techniques that actually make prose read as human.
+Read `references/humanizing-guide.md` (rewriting techniques, register notes, examples) and `references/ai-patterns.md` (what to remove) before rewriting.
+
+Work on structure and rhythm first, vocabulary last. Swapping "delve" for "dig into" while keeping the same paragraph template, triads and wrap-up sentences leaves text that still reads as AI. And watch your own output: when a model is asked to sound human it falls into a second set of tics — fragment overload, "Honestly?", "Here's the thing:", more em dashes, "It's not X. It's Y.", invented anecdotes. §9 of the catalog lists them; check each rewritten chunk against it.
 
 First, settle the **voice** in 2–3 lines and keep it fixed across all chunks so the document doesn't change personality halfway through:
 - Audience and register (academic, business, casual blog, personal statement…)

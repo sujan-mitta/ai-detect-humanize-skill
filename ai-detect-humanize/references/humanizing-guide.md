@@ -13,6 +13,8 @@ What makes text read as AI-written, and how to rewrite it so it reads as a perso
 
 ## 1. The patterns that give AI text away
 
+This is the short version. The full catalog — sentence templates, grammar habits, paragraph and document structure, formatting, tone, genre-specific tells, and the tics models fall into when told to "sound human" — is in `ai-patterns.md`.
+
 **Rhythm**
 - Sentences all 18–25 words long. Paragraphs all 3–4 sentences. Everything the same shape.
 - Every paragraph opens with a topic sentence and closes with a mini-summary.
@@ -99,4 +101,7 @@ After:
 - [ ] No more than one sentence-initial transition word per paragraph
 - [ ] Stock words/phrases from section 1 removed or justified
 - [ ] Voice matches the voice notes and the previous chunk
+- [ ] Participial tails (", ensuring…") and contrast frames ("not X, but Y") mostly gone
+- [ ] Paragraphs don't all end in a wrap-up sentence
+- [ ] None of the "sound human" tics from ai-patterns.md §9 crept in (fragment runs, "Honestly?", extra em dashes, invented details)
 - [ ] Reads naturally aloud — no slang, typos or forced quirks added

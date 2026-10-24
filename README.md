@@ -48,24 +48,29 @@ python ai-detect-humanize/scripts/ai_score.py report_humanized.docx --compare be
 
 ## How the score works
 
-| Signal | What it measures |
-|---|---|
-| Burstiness | Variation in sentence length (AI text tends to be uniform) |
-| Stock language | AI-typical words and phrases ("delve", "it is important to note"…) per 1,000 words |
-| Transitions | Share of sentences opening with *Furthermore*, *Moreover*, *Additionally*… |
-| Paragraph uniformity | Paragraphs all roughly the same length |
-| Triplets | Repeated "X, Y, and Z" lists |
-| Contractions | Few contractions where a person would use them |
-| Em dashes | Heavy em-dash use |
+The scorer measures 15 signals, grouped like the pattern catalog:
 
-Scores: **60+** likely AI · **40–59** mixed · **under 40** likely human.
+| Group | Signals |
+|---|---|
+| Rhythm | Sentence-length variety (burstiness); same-length paragraphs that end in wrap-up sentences |
+| Vocabulary | AI-typical words and phrases ("delve", "it is important to note", "as X continues to evolve"…); stacked hedges, "truly/incredibly", "experts say" |
+| Sentence templates | Participial tails (", ensuring…", ", highlighting…"); contrast frames ("It's not X — it's Y", "The result?"); repeated openers ("This…", "By -ing…"); *Furthermore/Moreover* openers; rule-of-three lists |
+| Fake-casual voice | Fragment runs ("Simple. Effective. Human."), "Honestly?", "Here's the thing" — what AI writes when told to sound human |
+| Punctuation | Few contractions; heavy em-dash use |
+| Document | Bold-label bullets, emoji markers; chat leftovers ("I hope this helps!"); repeated phrasing |
+
+The final score blends the weighted average with the strongest few signals, so clear evidence isn't averaged away. **60+** likely AI · **40–59** mixed · **under 40** likely human.
+
+On top of the script, Claude audits the text against [`references/ai-patterns.md`](ai-detect-humanize/references/ai-patterns.md), a catalog of how language models write. It covers vocabulary, sentence templates, grammar, rhythm, paragraph and document structure, formatting, tone, genre-specific tells, and the tics models fall into when told to "sound human".
 
 ## Repository layout
 
 ```
 ai-detect-humanize/
 ├── SKILL.md                       # instructions Claude follows
-├── references/humanizing-guide.md # AI patterns + rewriting techniques
+├── references/
+│   ├── ai-patterns.md             # full catalog of AI writing patterns
+│   └── humanizing-guide.md        # rewriting techniques + examples
 └── scripts/
     ├── extract_text.py            # PDF/DOCX/TXT/MD → text
     ├── chunk_text.py              # split long texts into chunks
