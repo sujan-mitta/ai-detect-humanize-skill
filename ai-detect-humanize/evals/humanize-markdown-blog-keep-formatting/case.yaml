@@ -1,0 +1,7 @@
+schema_version: "1.1"
+name: humanize-markdown-blog-keep-formatting
+expected_outcome: |
+  A new .md file with the post rewritten in a natural voice, keeping every heading, the list
+  structure, the link URL and the fenced code block byte-for-byte, with no fake-casual tics.
+context:
+  scaffold_script: place-files.sh

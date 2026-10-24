@@ -30,6 +30,28 @@ def extract_pdf(path):
 def reflow(text):
     # Join words hyphenated across line breaks: "inter-\nnational" -> "international"
     text = re.sub(r"(\w)-\n(\w)", r"\1\2", text)
+    # Many PDFs carry no blank lines between paragraphs. Treat a line that ends a
+    # sentence and stops well short of the typical line width as a paragraph end.
+    lines = text.split("\n")
+    lengths = sorted(len(l) for l in lines if len(l.strip()) > 20)
+    if lengths:
+        full = lengths[int(len(lengths) * 0.75)]
+        out_lines = []
+        for i, l in enumerate(lines):
+            s = l.strip()
+            nxt = lines[i + 1] if i + 1 < len(lines) else ""
+            # a short title-like line (no closing punctuation) followed by text is a heading
+            heading = (s and len(s) < 70 and not s.endswith((".", ",", ";", ":", "!", "?")) and s[0].isupper() or
+                       re.match(r"^\d+(\.\d+)*\.?\s+[A-Z]", s)) and len(nxt.strip()) > len(s)
+            if heading:
+                out_lines += ["", l, ""]
+                continue
+            out_lines.append(l)
+            ends = s.endswith((".", "!", "?", ":", '"', "”")) and len(l.rstrip()) < 0.8 * full
+            salutation = s.endswith(",") and len(s) < 0.4 * full  # "Dear Hiring Manager,"
+            if (ends or salutation) and nxt.strip():
+                out_lines.append("")
+        text = "\n".join(out_lines)
     paragraphs = re.split(r"\n\s*\n", text)
     out = []
     for para in paragraphs:

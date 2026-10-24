@@ -20,6 +20,7 @@ A single pattern proves nothing — humans use em dashes and say "crucial". What
 9. Second-order tells: what AI does when told to "sound human"
 10. Genre-specific tells (essays, emails, creative writing, academic, marketing)
 11. Quick audit checklist
+12. What the calibration data showed (newer models write differently)
 
 ---
 
@@ -224,3 +225,18 @@ Score each as none / some / heavy. Three or more "heavy" is a strong AI signal; 
 - [ ] Chat artifacts left in ("I hope this helps", "Certainly!") (§6)
 - [ ] Bold-label bullets, header-heavy, emoji markers (§7)
 - [ ] Uniformly positive, opinion-free tone (§8)
+
+## 12. What the calibration data showed (newer models write differently)
+
+The scorer was fitted on ~370 labelled texts: human writing from 1990s Usenet, pre-2021 arXiv abstracts, Wikipedia, Project Gutenberg and Paul Graham's essays, against text from three current Claude models answering the same kinds of requests. Some findings cut against the folklore above, and they matter for how much weight to give each pattern:
+
+- **The classic "ChatGPT" tells were nearly absent from current-model output.** Across 140 AI samples there were almost no em dashes, no "delve", no "crucial", and very few *Furthermore/Moreover* openers. A detector built only on those words (like this one's first version) scored at chance on real data. Treat sections 1–2 as strong evidence *when present* (older models, ChatGPT-style text, lazy prompting) but never treat their absence as evidence of a human writer.
+- **What did separate AI from human text** was quieter and structural:
+  - Humans use more **parentheses, semicolons, specific numbers and proper names** — concrete, specific, slightly messy writing.
+  - AI text had **more even sentence lengths**, more **rule-of-three lists**, more **bold lead-ins** ("**Define your use case.** If you…"), and more "wrap-up" sentences closing paragraphs.
+  - AI vocabulary was *more* varied word-to-word (a higher moving type-token ratio) — models avoid repeating words, while people happily reuse the same word.
+  - People **repeat phrases** across a text more than models do.
+- **GPT-2 perplexity** (how predictable each word is to a small language model) separates the two well: AI text is more predictable, with more of its words falling in the model's top-10 guesses.
+- **Hard cases:** polished human essays get flagged as AI more often than any other human genre; AI asked to write fiction "like a real author" is the most likely to slip through.
+
+So when auditing, weigh rhythm, specificity and structure above vocabulary, and when humanizing, the highest-leverage changes are: vary sentence length, add the specifics the source already has (numbers, names, examples), allow the odd parenthesis or semicolon where it fits the register, break up triads, and drop bold lead-ins and paragraph wrap-ups.

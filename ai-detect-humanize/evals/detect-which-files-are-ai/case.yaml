@@ -1,0 +1,9 @@
+schema_version: "1.1"
+name: detect-which-files-are-ai
+expected_outcome: |
+  All three files are scored and ranked. sample_a (AI encyclopedia-style text) and sample_c (AI news
+  piece) are rated as likely AI and sample_b (a 19th-century travel diary by Darwin) as human, with
+  specific evidence for each, plus the caveat that scores are estimates and a suggestion to verify
+  with a short live writing task.
+context:
+  scaffold_script: place-files.sh

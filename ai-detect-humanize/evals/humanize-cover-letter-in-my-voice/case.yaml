@@ -1,0 +1,11 @@
+schema_version: "1.1"
+name: humanize-cover-letter-in-my-voice
+expected_outcome: |
+  A rewritten cover letter in the applicant's own voice, modelled on my_writing.txt: plain words, 
+  contractions, varied sentence length, an occasional aside in parentheses, no em dashes, still a 
+  proper cover letter. All facts are preserved (Brightwave Logistics, Junior Data Analyst, September 
+  12, 2026, University of Leeds, Northfield Retail, 48 stores, 70%, 12%, 85,000 pounds, 2025 
+  certificate, 84% accuracy, Priya Raman) and nothing is invented. The response explains how it 
+  matched the voice.
+context:
+  scaffold_script: place-files.sh

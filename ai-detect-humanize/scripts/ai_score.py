@@ -21,6 +21,7 @@ was prompted for a voice can score low.
 """
 import argparse
 import json
+import math
 import re
 import statistics
 import sys
@@ -46,7 +47,9 @@ STOCK_WORDS = [
     "beacon", "cornerstone", "catalyst", "interplay", "garner", "garnered",
     "illuminate", "unveil", "unveiling", "revolutionize", "revolutionizing",
     "spearhead", "cultivate", "unparalleled", "effortlessly", "profound",
-    "kaleidoscope", "labyrinth", "symphony",
+    "kaleidoscope", "labyrinth", "symphony", "spearheaded", "spearheading", "fostered", "elevated",
+    "elevating", "leveraged", "harnessed", "empowered", "streamlining", "bolstered", "underscored",
+    "showcased", "impactful", "results-driven", "passionate", "synergies", "actionable",
 ]
 
 STOCK_PHRASES = [
@@ -68,6 +71,10 @@ STOCK_PHRASES = [
     r"further research is needed", r"i hope this (email|message) finds you well",
     r"take [\w ]{1,20} to the next level", r"say goodbye to", r"let that sink in",
     r"throughout history", r"in recent years", r"a (sense|mix) of",
+    r"data-driven (strategies|decision|insights|approach)", r"innovative solutions", r"drive meaningful",
+    r"let'?s connect", r"i am (writing to express|confident that my)", r"ideal candidate",
+    r"aligns? perfectly with", r"thank you for your time and consideration", r"i look forward to hearing",
+    r"deeply committed", r"forward-thinking", r"continuous improvement", r"actionable insights",
 ]
 
 # ", -ing" comment tails: "..., ensuring that every team has a voice."
@@ -134,7 +141,9 @@ WRAPUP_RE = re.compile(
 CONTRACTION_RE = re.compile(r"\b\w+'(s|t|re|ve|ll|d|m)\b", re.I)
 TRIPLET_RE = re.compile(r"\b[\w-]+(?: [\w-]+)?, [\w-]+(?: [\w-]+)?,? and [\w-]+", re.I)
 WORD_RE = re.compile(r"[A-Za-z][A-Za-z'-]*")
-BOLD_LABEL_RE = re.compile(r"^\s*([-*•]|\d+[.)])\s+\*\*[^*\n]{1,50}\*\*", re.M)
+BOLD_LABEL_RE = re.compile(r"^\s*(?:(?:[-*•]|\d+[.)])\s+)?\*\*[^*\n]{1,60}\*\*", re.M)
+FIRST_PERSON_RE = re.compile(r"\b(i|me|my|mine|i'm|i've|i'd|i'll)\b", re.I)
+PROPER_RE = re.compile(r"(?<=[a-z,;] )[A-Z][a-z]+")
 LABEL_LINE_RE = re.compile(r"^\s*(?:[-*•]\s+)?[A-Z][\w /&-]{1,35}:\s+[A-Z]", re.M)
 EMOJI_RE = re.compile("[\U0001F300-\U0001FAFF☀-➿]")
 
@@ -164,16 +173,178 @@ TOP_K = 4
 TOP_K_BLEND = 0.5
 
 
+MODEL_PATH = Path(__file__).parent / "model.json"
+
+# plain-language names for model features, used to explain a score
+FEATURE_LABELS = {
+    "mean_sentence_length": "average sentence length", "sentence_length_cv": "sentence-length variety",
+    "paragraph_length_cv": "paragraph-length variety", "wrapup_paragraph_share": "paragraphs ending in a wrap-up",
+    "stock_hits_per_1k": "AI-typical words/phrases", "hedges_per_1k": "hedges and intensifiers",
+    "participial_tails_per_1k": "', ensuring...' tails", "contrast_frames_per_1k": "'not X but Y' frames",
+    "transition_start_ratio": "Furthermore/Moreover openers", "template_opener_ratio": "template openers",
+    "top_opener_share": "repeated first word", "triplets_per_1k": "rule-of-three lists",
+    "fragment_ratio": "short fragments", "performed_voice_tics": "fake-casual tics",
+    "contractions_per_1k": "contractions", "em_dashes_per_1k": "em dashes", "chatbot_artifacts": "chatbot leftovers",
+    "repeated_4gram_ratio": "repeated phrases", "mattr": "vocabulary variety", "avg_word_length": "word length",
+    "commas_per_sentence": "commas per sentence", "semicolons_per_1k": "semicolons", "parens_per_1k": "parentheses",
+    "questions_per_1k": "questions", "exclaims_per_1k": "exclamation marks", "first_person_per_1k": "first person (I/me/my)",
+    "digits_per_1k": "specific numbers", "proper_nouns_per_1k": "names and proper nouns",
+    "bold_leads_per_1k": "bold lead-ins", "log_perplexity": "GPT-2 perplexity (predictability)",
+    "top1_fraction": "words GPT-2 guessed exactly", "top10_fraction": "words in GPT-2's top 10",
+    "rare_fraction": "surprising word choices", "sentence_ppl_cv": "perplexity variety across sentences",
+}
+_MODELS = None
+
+
+def load_models():
+    global _MODELS
+    if _MODELS is None:
+        _MODELS = json.loads(MODEL_PATH.read_text(encoding="utf-8")) if MODEL_PATH.exists() else {}
+    return _MODELS
+
+
+def model_score(raw, deep=None):
+    """Calibrated probability (0-100) from model.json, with per-feature contributions.
+
+    Uses the deep model when GPT-2 features are given, else the style model.
+    Returns None when no trained model is present (heuristic score is used).
+    """
+    models = load_models()
+    m = models.get("deep") if deep and "deep" in models else models.get("style")
+    if not m:
+        return None
+    logs = set(m.get("log_features", []))
+    values = [raw.get(name, (deep or {}).get(name)) for name in m["features"]]
+    values = [math.log1p(max(0.0, v)) if (n in logs and v is not None) else v for n, v in zip(m["features"], values)]
+    if m.get("type") == "gb":
+        return gb_score(m, values, "deep" if m is models.get("deep") else "style")
+    contrib = []
+    z = m["intercept"]
+    for name, v, mu, sd, c in zip(m["features"], values, m["mean"], m["scale"], m["coef"]):
+        if v is None:
+            v = mu  # missing (e.g. too few sentences for a CV): treat as average
+        term = c * (float(v) - mu) / (sd or 1)
+        z += term
+        contrib.append((name, term, float(v) > mu))
+    contrib.sort(key=lambda t: -abs(t[1]))
+    prob = 1 / (1 + math.exp(-max(-30, min(30, z))))
+    return {
+        "score": round(100 * prob),
+        "model": "deep" if m is models.get("deep") else "style",
+        "toward_ai": [(describe(n, above), round(t, 2)) for n, t, above in contrib if t > 0.15][:6],
+        "toward_human": [(describe(n, above), round(t, 2)) for n, t, above in contrib if t < -0.15][:6],
+    }
+
+
+# Safety net for dense, classic AI tells. The model learns from data in which
+# such phrases are rare on both sides, and short texts give it little to go on,
+# so a 77-word paragraph stuffed with "leveraging", "spearheaded" and "Let's
+# connect" could slip through. In the 394 human calibration texts, tell density
+# never exceeded 2.7 per 100 words, so the net starts above that.
+TELL_FLOOR, TELL_FULL = 2.7, 7.0
+
+
+def tell_density(text, prose, sents):
+    n = len(WORD_RE.findall(prose))
+    tells = (len(stock_hits(prose)) + 2 * len(find_all(CHATBOT_RES, text)) + len(find_all(CONTRAST_RES, prose))
+             + len(PARTICIPLE_RE.findall(prose)) + sum(starts_with_transition(s) for s in sents))
+    return 100 * tells / max(n, 60)
+
+
+def apply_tell_net(score, density):
+    p_tell = clamp((density - TELL_FLOOR) / (TELL_FULL - TELL_FLOOR))
+    return round(100 * (1 - (1 - score / 100) * (1 - p_tell))), p_tell
+
+
+def gb_raw(m, x):
+    """Log-odds from exported boosted trees (node = [feature, threshold, left,
+    right, is_leaf, value, missing_goes_left])."""
+    z = m["baseline"]
+    for tree in m["trees"]:
+        node = tree[0]
+        while not node[4]:
+            v = x[node[0]]
+            go_left = node[6] if v is None or v != v else v <= node[1]
+            node = tree[node[2] if go_left else node[3]]
+        z += node[5]
+    return z
+
+
+def gb_score(m, values, kind):
+    """Score plus explanations: each feature's effect is how much the log-odds
+    change when that feature is reset to the typical (median) training value."""
+    a, b = m.get("platt", [1.0, 0.0])
+    z = gb_raw(m, values)
+    contrib = []
+    for i, (name, v, med) in enumerate(zip(m["features"], values, m["medians"])):
+        if v is None:
+            continue
+        alt = list(values)
+        alt[i] = med
+        contrib.append((name, a * (z - gb_raw(m, alt)), v > med))
+    z = a * z + b
+    contrib.sort(key=lambda t: -abs(t[1]))
+    prob = 1 / (1 + math.exp(-max(-30, min(30, z))))
+    return {
+        "score": round(100 * prob),
+        "model": kind,
+        "toward_ai": [(describe(n, above), round(t, 2)) for n, t, above in contrib if t > 0.1][:6],
+        "toward_human": [(describe(n, above), round(t, 2)) for n, t, above in contrib if t < -0.1][:6],
+    }
+
+
+# Features a faithful rewrite can't really change: they come from the facts
+# (numbers, names) or from the language model's view of the content.
+CONTENT_FEATURES = {"digits_per_1k", "proper_nouns_per_1k", "log_perplexity", "top1_fraction",
+                    "top10_fraction", "rare_fraction"}
+
+
+def describe(name, above):
+    """'fewer parentheses', 'higher average sentence length' - the direction matters:
+    a feature is listed because the text has more OR less of it than typical."""
+    label = FEATURE_LABELS.get(name, name)
+    countable = name not in {"mean_sentence_length", "sentence_length_cv", "paragraph_length_cv", "mattr",
+                             "avg_word_length", "commas_per_sentence", "log_perplexity", "sentence_ppl_cv"}
+    word = ("more" if above else "fewer") if countable else ("higher" if above else "lower")
+    text = f"{word} {label}"
+    if name in CONTENT_FEATURES:
+        text += " (content)"
+    return text
+
+
 def clamp(x):
     return max(0.0, min(1.0, x))
 
 
+CITATION_RE = re.compile(
+    r"\((?:see |e\.g\.,? |cf\. )?[A-Z][A-Za-z'\-]+(?: et al\.?|,? (?:and|&) [A-Z][A-Za-z'\-]+)?,? \d{4}[a-z]?"
+    r"(?:[;,] ?(?:p+\. ?)?[\w\s.,&'\-]*?\d{4}[a-z]?)*(?:, p+\. ?\d+(?:[-–]\d+)?)?\)"
+    r"|\[\d+(?:[,–-]\s*\d+)*\]")
+STAT_PAREN_RE = re.compile(r"\((?=[^)]*[=<>\d])[^()a-z]*(?:\b[a-zA-Z]{1,3}\b[^()a-z]*)*\)")
+
+
+def strip_markup(text):
+    """Remove things that aren't prose style: code, links, URLs, citations and
+    bracketed statistics. Otherwise e.g. '(Smith et al., 2019)' or '(n = 214)'
+    would count as a human-style parenthetical and a handful of digits."""
+    t = re.sub(r"```.*?```", " ", text, flags=re.S)
+    t = re.sub(r"`[^`\n]+`", "code", t)
+    t = re.sub(r"!?\[([^\]]*)\]\([^)]+\)", r"\1", t)  # markdown links/images -> link text
+    t = re.sub(r"https?://\S+|www\.\S+", " ", t)
+    t = CITATION_RE.sub("", t)
+    t = re.sub(r"(?<=[A-Z][a-z]) (?:et al\.? )?\(\d{4}[a-z]?\)", "", t)  # Author (2019)
+    t = STAT_PAREN_RE.sub("", t)
+    t = re.sub(r"\([A-Z][A-Za-z0-9\-]*[A-Z0-9]s?\)", "", t)  # acronym definitions: (NLP), (RNNs)
+    t = re.sub(r"\$[^$\n]{1,80}\$", "x", t)  # inline LaTeX math
+    return t
+
+
 def prose_blocks(text):
-    """Paragraphs excluding headings, tables and code."""
+    """Paragraphs excluding headings, tables, code, links and citations."""
     blocks = []
-    for block in re.split(r"\n\s*\n", text):
+    for block in re.split(r"\n\s*\n", strip_markup(text)):
         b = block.strip()
-        if not b or b.startswith("```") or b.startswith("|"):
+        if not b or b.startswith("|"):
             continue
         lines = [l for l in b.splitlines() if not re.match(r"^#{1,6}\s", l)]
         if lines:
@@ -277,6 +448,14 @@ def analyze(text):
     repeated = sum(c for c in grams.values() if c >= 2)
     rep_ratio = repeated / max(1, sum(grams.values()))
 
+    # general stylometry: vocabulary richness, word length, punctuation, specificity
+    win = 50
+    if len(lw) > win:
+        mattr = statistics.mean(len(set(lw[i:i + win])) / win for i in range(0, len(lw) - win, 10))
+    else:
+        mattr = len(set(lw)) / max(1, len(lw))
+    true_k = 1000.0 / n_words
+
     raw = {
         "words": len(words),
         "sentences": len(sents),
@@ -291,6 +470,7 @@ def analyze(text):
         "transition_start_ratio": round(trans_ratio, 3),
         "template_opener_ratio": round(template_openers / n_sents, 3),
         "most_common_opener": f"{top_first} ({top_count})",
+        "top_opener_share": round(top_share, 3),
         "triplets_per_1k": round(triplets, 2),
         "fragment_ratio": round(frag_ratio, 3),
         "performed_voice_tics": len(tics),
@@ -301,6 +481,17 @@ def analyze(text):
         "label_lines": label_lines,
         "emojis": emojis,
         "repeated_4gram_ratio": round(rep_ratio, 3),
+        "mattr": round(mattr, 4),
+        "avg_word_length": round(statistics.mean(len(w) for w in words), 3) if words else 0,
+        "commas_per_sentence": round(prose.count(",") / n_sents, 3),
+        "semicolons_per_1k": round(prose.count(";") * true_k, 2),
+        "parens_per_1k": round(prose.count("(") * true_k, 2),
+        "questions_per_1k": round(prose.count("?") * true_k, 2),
+        "exclaims_per_1k": round(prose.count("!") * true_k, 2),
+        "first_person_per_1k": round(len(FIRST_PERSON_RE.findall(prose)) * true_k, 2),
+        "digits_per_1k": round(len(re.findall(r"\d+", prose)) * true_k, 2),
+        "proper_nouns_per_1k": round(len(PROPER_RE.findall(prose)) * true_k, 2),
+        "bold_leads_per_1k": round(bold_labels * true_k, 2),
     }
     sig = {
         "burstiness": clamp((0.65 - cv) / 0.40),
@@ -322,9 +513,17 @@ def analyze(text):
     }
     weighted = sum(sig[name] * w for name, w, _ in SIGNALS)
     strongest = sorted(sig.values(), reverse=True)[:TOP_K]
-    score = round(100 * ((1 - TOP_K_BLEND) * weighted + TOP_K_BLEND * sum(strongest) / TOP_K))
+    heuristic = round(100 * ((1 - TOP_K_BLEND) * weighted + TOP_K_BLEND * sum(strongest) / TOP_K))
+    calibrated = model_score(raw)
+    score = calibrated["score"] if calibrated else heuristic
+    raw["tells_per_100w"] = round(tell_density(text, prose, sents), 2)
+    if calibrated:
+        score, p_tell = apply_tell_net(score, raw["tells_per_100w"])
+        calibrated["tell_net"] = round(p_tell, 2)
     return {
         "score": score,
+        "heuristic_score": heuristic,
+        "calibrated": calibrated,
         "verdict": verdict(score),
         "low_confidence": len(words) < 150,
         "signals": {k: round(v, 3) for k, v in sig.items()},
@@ -349,72 +548,107 @@ def verdict(score):
     return "likely human"
 
 
-def sections(text, target=350):
-    """Split by headings when present, otherwise into ~target-word groups."""
-    out, title, buf, count = [], "Start", [], 0
+def sections(text, target=250):
+    """Split at headings, and within long stretches into ~target-word groups of
+    whole paragraphs, labelled by paragraph number so a reader can find them."""
+    out, heading, buf, count, para_no, first = [], None, [], 0, 0, 1
+
+    def flush():
+        if buf:
+            label = f"¶{first}" if para_no == first else f"¶{first}-{para_no}"
+            out.append((f"{heading} ({label})" if heading else f"Paragraphs {label[1:]}", "\n\n".join(buf)))
+
     for block in re.split(r"\n\s*\n", text):
         b = block.strip()
         if not b:
             continue
         m = re.match(r"^#{1,6}\s+(.*)", b)
         if m and "\n" not in b:
-            if buf:
-                out.append((title, "\n\n".join(buf)))
-            title, buf, count = m.group(1).strip()[:60], [], 0
+            flush()
+            heading, buf, count, first = m.group(1).strip()[:50], [], 0, para_no + 1
             continue
+        para_no += 1
         buf.append(b)
         count += len(b.split())
-        if count >= target * 1.6:
-            out.append((title, "\n\n".join(buf)))
-            title, buf, count = title + " (cont.)" if "(cont.)" not in title else title, [], 0
-    if buf:
-        out.append((title, "\n\n".join(buf)))
+        if count >= target:
+            flush()
+            buf, count, first = [], 0, para_no + 1
+    flush()
     # merge tiny sections into the previous one
     merged = []
     for t, body in out:
         if merged and len(body.split()) < 60:
-            merged[-1] = (merged[-1][0], merged[-1][1] + "\n\n" + body)
+            merged[-1] = (merged[-1][0] + " + " + t, merged[-1][1] + "\n\n" + body)
         else:
             merged.append((t, body))
     return merged
 
 
+def sentence_detail(s):
+    """(weight, reasons) of AI patterns in one sentence."""
+    reasons, weight = [], 0
+    hits = stock_hits(s)
+    if hits:
+        reasons.append("stock: " + ", ".join(sorted(set(hits))[:4]))
+        weight += 2 * len(hits)
+    checks = [
+        (PARTICIPLE_RE.search(s), "participial tail", 2),
+        (any(p.search(s) for p in CONTRAST_RES), "contrast frame / reveal", 2),
+        (starts_with_transition(s), "transition opener", 1),
+        (OPENER_TEMPLATE_RE.search(s.lstrip("\"'( ")), "template opener", 1),
+        (any(p.search(s) for p in HEDGE_RES), "hedge / intensifier", 1),
+        (any(p.search(s) for p in PERFORMED_VOICE_RES), "fake-casual tic", 2),
+        (any(p.search(s) for p in CHATBOT_RES), "chatbot artifact", 3),
+        ("—" in s, "em dash", 1),
+        (TRIPLET_RE.search(s), "rule of three", 1),
+        (BOLD_LABEL_RE.search(s), "bold lead-in", 1),
+    ]
+    for hit, label, w in checks:
+        if hit:
+            reasons.append(label)
+            weight += w
+    return weight, reasons
+
+
 def sentence_flags(sents, limit=12):
     scored = []
     for s in sents:
-        reasons, weight = [], 0
-        hits = stock_hits(s)
-        if hits:
-            reasons.append("stock: " + ", ".join(sorted(set(hits))[:4]))
-            weight += 2 * len(hits)
-        checks = [
-            (PARTICIPLE_RE.search(s), "participial tail", 2),
-            (any(p.search(s) for p in CONTRAST_RES), "contrast frame / reveal", 2),
-            (starts_with_transition(s), "transition opener", 1),
-            (OPENER_TEMPLATE_RE.search(s.lstrip("\"'( ")), "template opener", 1),
-            (any(p.search(s) for p in HEDGE_RES), "hedge / intensifier", 1),
-            (any(p.search(s) for p in PERFORMED_VOICE_RES), "fake-casual tic", 2),
-            (any(p.search(s) for p in CHATBOT_RES), "chatbot artifact", 3),
-            ("—" in s, "em dash", 1),
-            (TRIPLET_RE.search(s), "rule of three", 1),
-        ]
-        for hit, label, w in checks:
-            if hit:
-                reasons.append(label)
-                weight += w
+        weight, reasons = sentence_detail(s)
         if weight >= 2:
             scored.append((weight, s, reasons))
     scored.sort(key=lambda x: -x[0])
     return [{"sentence": s[:300], "reasons": r} for _, s, r in scored[:limit]]
 
 
-def build(text):
+def build(text, deep=False):
     overall = analyze(text)
+    if deep:
+        import perplexity
+        if not perplexity.available():
+            print("NOTE: --deep needs `pip install torch transformers`; using the style model.", file=sys.stderr)
+        else:
+            feats = perplexity.features(text)
+            if feats:
+                overall["deep"] = {k: v for k, v in feats.items() if k != "sentence_ppl"}
+                cal = model_score(overall["raw"], feats)
+                if cal:
+                    cal["score"], p_tell = apply_tell_net(cal["score"], overall["raw"]["tells_per_100w"])
+                    cal["tell_net"] = round(p_tell, 2)
+                    overall["calibrated"] = cal
+                    overall["score"] = cal["score"]
+                    overall["verdict"] = verdict(cal["score"])
     secs = []
     for title, body in sections(text):
         a = analyze(body)
         secs.append({"title": title, "words": a["raw"]["words"], "score": a["score"], "verdict": a["verdict"]})
     overall["sections"] = secs
+    # A document whose sections clearly disagree is reported as mixed: averaging a
+    # human half with an AI half would otherwise hide the AI half.
+    solid = [s for s in secs if s["words"] >= 100]
+    ai_secs = [s for s in solid if s["score"] >= 60]
+    if ai_secs and any(s["score"] < 40 for s in solid) and overall["score"] < 60:
+        overall["mixed"] = {"ai_sections": [s["title"] for s in ai_secs], "of": len(solid)}
+        overall["verdict"] = f"mixed - {len(ai_secs)} of {len(solid)} sections read as AI"
     overall["flagged_sentences"] = sentence_flags(overall.pop("_sentences"))
     return overall
 
@@ -428,10 +662,35 @@ def render(result, source, before=None):
                      f"{before['verdict']} -> **{result['verdict']}**")
     else:
         lines.append(f"**Score:** {result['score']}/100 - **{result['verdict']}**")
+    if result.get("mixed"):
+        lines.append("**Mixed document:** these sections read as AI while others read as human: "
+                     + "; ".join(result["mixed"]["ai_sections"]))
     lines.append(f"Words: {r['words']}, sentences: {r['sentences']}"
                  + ("  (short text - low confidence)" if result["low_confidence"] else ""))
-    lines += ["", "_Heuristic estimate from writing style. Not proof of authorship._", "",
-              "## Signals", "", "| Signal | AI-ness (0-1) | Measured |", "|---|---|---|"]
+    cal = result.get("calibrated")
+    if cal:
+        models = load_models()
+        cv = models.get("cv", {}).get(f"{cal['model']}_cv", {})
+        how = "style + GPT-2 perplexity" if cal["model"] == "deep" else "writing style"
+        lines.append(f"Model: calibrated on {models.get('trained_on', {}).get('n_train', '?')} labelled texts using {how}"
+                     + (f" (cross-validated accuracy {cv['accuracy']:.0%}, AUC {cv['auc']:.2f})" if cv else ""))
+        if result.get("deep"):
+            d = result["deep"]
+            lines.append(f"GPT-2: perplexity {d['perplexity']}, {d['top10_fraction']:.0%} of words in its top-10 guesses")
+        if cal["toward_ai"]:
+            lines.append("**Pushing toward AI** (compared with typical human writing): "
+                         + ", ".join(n for n, _ in cal["toward_ai"]))
+        if cal["toward_human"]:
+            lines.append("**Pushing toward human:** " + ", ".join(n for n, _ in cal["toward_human"]))
+        if cal.get("tell_net", 0) > 0:
+            lines.append(f"**Dense AI tells:** {r['tells_per_100w']} per 100 words (no human text in the calibration set "
+                         f"exceeded {TELL_FLOOR}) - this raised the score.")
+        if any("(content)" in n for n, _ in cal["toward_ai"]):
+            lines.append("_(content) = comes from the facts or subject matter; a faithful rewrite can't change it._")
+        if r["words"] < 300:
+            lines.append(f"_Short text ({r['words']} words): expect the score to move 10+ points from small edits._")
+    lines += ["", "_Statistical estimate from writing style. Not proof of authorship._", "",
+              "## Pattern signals", "", "| Signal | AI-ness (0-1) | Measured |", "|---|---|---|"]
     measured = {
         "burstiness": f"sentence-length CV {r['sentence_length_cv']} (human ~0.5-0.9)",
         "stock_language": f"{r['stock_hits_per_1k']} per 1k words",
@@ -482,10 +741,12 @@ def main():
     ap.add_argument("--report", help="write a markdown report here")
     ap.add_argument("--json", help="write full results as JSON here")
     ap.add_argument("--compare", help="JSON from an earlier run, to show before/after")
+    ap.add_argument("--deep", action="store_true", help="add GPT-2 perplexity features (needs torch + transformers)")
+    ap.add_argument("--html", help="also write an interactive sentence-heatmap report here")
     args = ap.parse_args()
 
     text = extract(args.input)
-    result = build(text)
+    result = build(text, deep=args.deep)
     before = json.loads(Path(args.compare).read_text(encoding="utf-8")) if args.compare else None
     report = render(result, args.input, before)
 
@@ -495,6 +756,10 @@ def main():
     if args.report:
         Path(args.report).parent.mkdir(parents=True, exist_ok=True)
         Path(args.report).write_text(report, encoding="utf-8")
+    if args.html:
+        import html_report
+        page, _ = html_report.build_report(args.input, deep=args.deep and "deep" in result)
+        Path(args.html).write_text(page, encoding="utf-8")
     sys.stdout.reconfigure(encoding="utf-8")
     print(report)
 

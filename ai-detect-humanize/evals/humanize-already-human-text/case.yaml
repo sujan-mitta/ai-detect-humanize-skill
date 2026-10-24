@@ -1,0 +1,8 @@
+schema_version: "1.1"
+name: humanize-already-human-text
+expected_outcome: |
+  The skill scores the text, finds it already reads as human, and says so plainly. It makes at most
+  light edits (or none), keeps the author's voice, and does not 'humanize' it into something more
+  generic or add fake-casual tics.
+context:
+  scaffold_script: place-files.sh

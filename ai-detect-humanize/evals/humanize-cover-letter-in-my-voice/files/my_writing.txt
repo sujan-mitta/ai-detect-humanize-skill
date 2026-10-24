@@ -1,0 +1,15 @@
+Quick update on the dashboard thing, since a few people asked.
+
+So the old weekly report took me most of Monday. Every week. I'd pull the inventory numbers out of three different systems, paste them into a spreadsheet that was (honestly) held together with tape, and then spend an hour checking that nothing had shifted by a row. It worked. It was also the most boring part of my week by a mile.
+
+I'd been learning Python on the side anyway, so I tried automating the pull. First version broke twice in the first week (date formats, of course). Second version mostly worked. By the third I'd added a few charts and a little table that flags any store where stock looks odd compared to last year.
+
+Now the report runs itself on Sunday night and I spend maybe forty minutes on Monday reading it instead of building it. My manager's favourite part is the flag table, which surprised me, because I almost didn't bother with it.
+
+A couple of things I learned. Start ugly. My first script was embarrassing but it got me to the second one. And ask the people who read the report what they actually look at, because it's usually not what you think. Half the columns we'd been producing for years, nobody opened.
+
+Anyway, if you want the code, shout. It's not pretty but it's commented.
+
+I've also been poking at delivery data in my spare time, mostly because I'm nosy about why parcels are late. Turns out weather explains less than I expected and the day of the week explains more. I built a small model that guesses whether a delivery will be late and it gets it right most of the time, which is more than I can say for my own guesses.
+
+I like this kind of work. Finding the boring, repeated thing and making it go away so people can think about the interesting stuff instead. That's probably the job I want, if I'm honest about it.

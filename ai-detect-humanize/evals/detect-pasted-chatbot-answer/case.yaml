@@ -1,0 +1,9 @@
+schema_version: "1.1"
+name: detect-pasted-chatbot-answer
+expected_outcome: |
+  The skill flags the post as likely AI with a high score and gives specific evidence: leftover
+  chatbot phrases ('Great question!', 'I hope this helps', 'Feel free to'), bold-label bullet
+  structure, rule-of-three lists, generic advice with no personal specifics. It quotes the passages
+  and keeps the not-proof caveat.
+context:
+  scaffold_script: place-files.sh

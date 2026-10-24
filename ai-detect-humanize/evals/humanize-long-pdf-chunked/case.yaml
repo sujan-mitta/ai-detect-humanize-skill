@@ -1,0 +1,8 @@
+schema_version: "1.1"
+name: humanize-long-pdf-chunked
+expected_outcome: |
+  The skill extracts the multi-page PDF, splits it into chunks, rewrites every chunk (no topic dropped
+  or summarized), verifies facts per chunk, rebuilds a .docx with all 15 topic headings in order at a
+  similar length, and reports a before/after score.
+context:
+  scaffold_script: place-files.sh

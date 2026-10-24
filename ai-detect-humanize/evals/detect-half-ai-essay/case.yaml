@@ -1,0 +1,11 @@
+schema_version: "1.1"
+name: detect-half-ai-essay
+expected_outcome: |
+  The response gives an overall AI-likeness score and a clear caveat that this is a statistical 
+  estimate, not proof. It identifies that the opening paragraphs read as human (they are a Thoreau 
+  excerpt, 19th-century style) and that the later paragraphs read as AI-generated, quoting specific 
+  AI-sounding passages and naming the patterns (stock phrases like 'In today's fast-paced world', 
+  Furthermore/Moreover openers, 'In conclusion'). It does not claim certainty and gives the teacher a 
+  fair way to proceed.
+context:
+  scaffold_script: place-files.sh

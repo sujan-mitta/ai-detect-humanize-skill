@@ -1,0 +1,7 @@
+schema_version: "1.1"
+name: humanize-short-pasted-paragraph
+expected_outcome: |
+  The rewrite is given directly in the chat (no file needed), keeps every fact (7 years, Acme Foods,
+  Brightline Media, 150%, 40,000), drops the buzzwords (passionate, results-driven, leveraging,
+  elevate, spearheaded, fostering, impactful), stays first person and professional, and is about the
+  same length.

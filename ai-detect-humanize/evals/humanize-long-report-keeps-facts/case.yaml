@@ -1,0 +1,10 @@
+schema_version: "1.1"
+name: humanize-long-report-keeps-facts
+expected_outcome: |
+  A rewritten .docx report that reads like a competent human analyst wrote it: varied sentence 
+  rhythm, AI stock phrases and templates removed, still professional. Every number, percentage, date, 
+  money amount, the Reichheld (2003) citation and the team-lead quote are preserved exactly, with no 
+  invented facts. Same headings in the same order, similar length. The response gives a before/after 
+  AI score and confirms the facts check.
+context:
+  scaffold_script: place-files.sh

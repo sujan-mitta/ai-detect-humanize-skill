@@ -44,9 +44,10 @@ delve, tapestry, testament, realm, landscape, intricate, multifaceted, pivotal, 
 
 Use these in combination; one alone isn't enough.
 
-1. **Vary sentence length deliberately.** Mix a 5-word sentence with a 30-word one. Let one paragraph be a single sentence if it earns it. This is the biggest single lever.
+1. **Vary sentence length deliberately — in both directions.** Mix a 5-word sentence with a 35-word one that takes a clause or two to land. Let one paragraph be a single sentence if it earns it. The common mistake is only adding short sentences: human writing in the calibration data runs *longer* on average than AI text, so a page of punchy fragments reads as AI. Combine as often as you split.
 2. **Cut the scaffolding.** Delete "It is important to note that", "In conclusion," and most sentence-initial transitions. The logic usually survives without them; where it doesn't, use a plain connector (but, so, and, still, yet) or restructure.
-3. **Swap inflated words for plain ones.** utilize → use, leverage → use/build on, facilitate → help, crucial → important (or just say why it matters), delve into → look at/dig into, robust → solid/reliable (or the specific property).
+3. **Repeat words naturally.** Don't rotate synonyms to avoid using a word twice ("the company… the firm… the organization"). Models vary vocabulary more than people do; a person just says "the company" again.
+3b. **Swap inflated words for plain ones.** utilize → use, leverage → use/build on, facilitate → help, crucial → important (or just say why it matters), delve into → look at/dig into, robust → solid/reliable (or the specific property).
 4. **Make it concrete.** Replace general claims with the specifics already in the source: the number, the name, the example. Don't invent facts — if no specific exists, a plainer, shorter claim is better than an inflated one.
 5. **Break the rule of three.** Use two items, or four, or one with a reason.
 6. **Commit.** Where the original hedges both ways, keep the writer's actual position if one is implied ("This approach is slower, but for most teams the trade-off is worth it").
