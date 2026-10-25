@@ -22,6 +22,7 @@ import argparse
 import hashlib
 import json
 import math
+import re
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -44,7 +45,7 @@ STYLE_FEATURES = [
     "fragment_ratio", "performed_voice_tics", "contractions_per_1k", "em_dashes_per_1k",
     "chatbot_artifacts", "repeated_4gram_ratio", "mattr", "avg_word_length", "commas_per_sentence",
     "semicolons_per_1k", "parens_per_1k", "questions_per_1k", "exclaims_per_1k", "first_person_per_1k",
-    "digits_per_1k", "proper_nouns_per_1k", "bold_leads_per_1k",
+    "digits_per_1k", "proper_nouns_per_1k", "bold_leads_per_1k", "fiction_cliches_per_1k", "dialogue_ratio",
 ]
 # Features that are AI tells in the wild (ai-patterns.md). Their weights are
 # constrained to be >= 0 so a quirk of the corpus (e.g. the Claude samples
@@ -53,6 +54,7 @@ AI_DIRECTION = {
     "stock_hits_per_1k", "hedges_per_1k", "participial_tails_per_1k", "contrast_frames_per_1k",
     "transition_start_ratio", "template_opener_ratio", "triplets_per_1k", "performed_voice_tics",
     "em_dashes_per_1k", "chatbot_artifacts", "wrapup_paragraph_share", "bold_leads_per_1k",
+    "fiction_cliches_per_1k",
 }
 # Heavy-tailed counts are log-scaled (log1p) so one habit - e.g. a couple of
 # parentheses in a short text - can't swing the whole score.
@@ -191,6 +193,45 @@ def fit_gb(X, y, names):
             "medians": np.median(X, axis=0).round(6).tolist()}
 
 
+def verdict_thresholds(p, y, max_fp=0.05, max_fn=0.10):
+    s = np.round(100 * p)
+    t_ai = next(t for t in range(1, 101) if (s[y == 0] >= t).mean() <= max_fp)
+    t_h = max([t for t in range(1, t_ai + 1) if (s[y == 1] < t).mean() <= max_fn] or [1])
+    return {"ai": t_ai, "human": t_h,
+            "human_said_human": round(float((s[y == 0] < t_h).mean()), 4), "human_said_ai": round(float((s[y == 0] >= t_ai).mean()), 4),
+            "ai_said_ai": round(float((s[y == 1] >= t_ai).mean()), 4), "ai_said_human": round(float((s[y == 1] < t_h).mean()), 4)}
+
+
+def first_words(text, n):
+    """The first ~n words, keeping paragraph breaks and ending on a sentence."""
+    m = list(re.finditer(r"\S+", text))
+    if len(m) <= n:
+        return text
+    cut = text[:m[n - 1].end()]
+    end = max(cut.rfind(". "), cut.rfind(".\n"), cut.rfind("? "), cut.rfind("! "))
+    return cut[:end + 1] if end > len(cut) * 0.6 else cut
+
+
+def length_curve(train, y, lengths=(50, 100, 150, 200, 300)):
+    """Accuracy when only the first N words are available (style model, out-of-fold)."""
+    print("\n## Accuracy vs text length (style model; trained on full texts, tested on the first N words)")
+    X = matrix(train, STYLE_FEATURES, False)
+    curve = {}
+    folds = list(StratifiedKFold(5, shuffle=True, random_state=0).split(X, y))
+    models_ = [make_gb(STYLE_FEATURES).fit(X[tr], y[tr]) for tr, _ in folds]
+    for n in lengths:
+        cut = [dict(r, feat={k: ai_score.analyze(first_words(r["text"], n))["raw"][k] for k in STYLE_FEATURES})
+               for r in train]
+        Xc = matrix(cut, STYLE_FEATURES, False)
+        p = np.zeros(len(y))
+        for (tr, te), m in zip(folds, models_):
+            p[te] = m.predict_proba(Xc[te])[:, 1]
+        acc, auc = float(((p >= 0.5) == y).mean()), float(roc_auc_score(y, p))
+        curve[n] = {"accuracy": round(acc, 4), "auc": round(auc, 4)}
+        print(f"  first {n:4d} words: accuracy {acc:.1%} | AUC {auc:.3f}")
+    return curve
+
+
 def report(name, rows, probs, threshold=0.5):
     y = np.array([r["label"] for r in rows])
     pred = probs >= threshold
@@ -220,6 +261,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--no-deep", action="store_true")
     ap.add_argument("--write", action="store_true")
+    ap.add_argument("--length-curve", action="store_true")
     args = ap.parse_args()
     deep = not args.no_deep
 
@@ -236,7 +278,8 @@ def main():
                                   np.array([r["heuristic"] / 100 for r in train]))
     Xs = matrix(train, STYLE_FEATURES, False)
     results["style_lr_cv"] = report("Logistic regression: style features (5-fold CV)", train, cv_predict(Xs, y, STYLE_FEATURES))
-    results["style_cv"] = report("Boosted trees: style features (5-fold CV) - deployed", train, cv_predict_gb(Xs, y, STYLE_FEATURES))
+    oof = {"style": cv_predict_gb(Xs, y, STYLE_FEATURES)}
+    results["style_cv"] = report("Boosted trees: style features (5-fold CV) - deployed", train, oof["style"])
     lr_style = fit_full(Xs, y, STYLE_FEATURES)
     models = {"style": fit_gb(Xs, y, STYLE_FEATURES)}
     sets = [("style", STYLE_FEATURES, False)]
@@ -244,9 +287,24 @@ def main():
         names = STYLE_FEATURES + DEEP_FEATURES
         Xd = matrix(train, names, True)
         results["deep_lr_cv"] = report("Logistic regression: style + GPT-2 features (5-fold CV)", train, cv_predict(Xd, y, names))
-        results["deep_cv"] = report("Boosted trees: style + GPT-2 features (5-fold CV) - deployed", train, cv_predict_gb(Xd, y, names))
+        oof["deep"] = cv_predict_gb(Xd, y, names)
+        results["deep_cv"] = report("Boosted trees: style + GPT-2 features (5-fold CV) - deployed", train, oof["deep"])
         models["deep"] = fit_gb(Xd, y, names)
         sets.append(("deep", names, True))
+
+    # Verdict thresholds from out-of-fold scores: "likely AI" needs a score that at
+    # most 5% of human texts reach; "likely human" a score below which at most 10%
+    # of AI texts fall. In between is "mixed / uncertain".
+    for key, p in oof.items():
+        th = verdict_thresholds(p, y)
+        models[key]["thresholds"] = th
+        results[f"{key}_thresholds"] = th
+        print(f"\n## {key} verdict bands: likely AI >= {th['ai']:.0f}, likely human < {th['human']:.0f}")
+        print(f"  humans: {th['human_said_human']:.0%} 'likely human', {th['human_said_ai']:.0%} 'likely AI' | "
+              f"AI: {th['ai_said_ai']:.0%} 'likely AI', {th['ai_said_human']:.0%} 'likely human'")
+
+    if args.length_curve:
+        results["length_curve"] = length_curve(train, y)
 
     # held-out genres, scored by models fit on all training data
     if extra:

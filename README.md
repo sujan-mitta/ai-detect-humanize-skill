@@ -19,21 +19,60 @@ A [Claude skill](https://docs.claude.com/en/docs/agents-and-tools/agent-skills/o
 
 ## How accurate is detection?
 
-The model was trained and cross-validated on **793 labelled texts**:
-- **394 human texts** written before LLMs were common: 1990s Usenet, arXiv abstracts from before 2021, Wikipedia, Project Gutenberg, Paul Graham essays, StackExchange answers from before 2020, Wikinews, and Python PEPs.
-- **399 AI texts** from three Claude models plus ChatGPT-style writing, across forum posts, Q&A, essays, academic writing (with and without citations), encyclopedia articles, news, fiction and technical writing. Some were prompted to "sound human".
+The model was trained and cross-validated on **1,122 labelled texts**:
+- **603 human texts** written before LLMs were common: 1990s Usenet, arXiv abstracts from before 2021, Wikipedia, Project Gutenberg (19th-century books and 1900–1928 fiction and essays: Fitzgerald, Joyce, Woolf, Cather, Mansfield, Chesterton), 75 Paul Graham essays, StackExchange answers from 24 sites (before 2020), Wikinews, and Python PEPs.
+- **519 AI texts** from three Claude models plus ChatGPT-style writing, across forum posts, Q&A, essays, academic writing (with and without citations), encyclopedia articles, news, technical writing and **106 pieces of fiction**. Some were prompted to "sound human".
 
 5-fold cross-validation:
 
 | Model | AUC | Accuracy | AI caught | Humans wrongly flagged |
 |---|---|---|---|---|
 | Old hand-tuned rules (v1) | 0.51 on Claude-only data | — | 16% | — |
-| Style model (default) | 0.967 | 90.7% | 90.7% | 9.4% |
-| Style + GPT-2 (`--deep`) | **0.974** | **91.7%** | 90.5% | **7.1%** |
+| Style model (default) | 0.973 | 90.8% | 90.8% | 9.1% |
+| Style + GPT-2 (`--deep`) | **0.981** | **93.4%** | **93.3%** | **6.5%** |
 
-On genres the model never trained on (emails, cover letters, LinkedIn posts, blog posts, business reports), it catches 74% of AI text with the style model and 79% with `--deep`.
+**Verdicts are tuned to avoid false accusations.** The "likely AI" cut-off is set from the data so that only 5% of human texts reach it. Borderline texts get "mixed / uncertain" instead.
 
-**Known weak spots:** AI-written fiction (about half is caught), technical writing in a casual voice, and polished human essays and Q&A answers (10–16% wrongly flagged). Human text that was polished by AI lands anywhere, which is expected.
+| Verdict | Human texts | AI texts |
+|---|---|---|
+| Deep mode: "likely AI" (score ≥ 57) | 5% | 91% |
+| Style mode: "likely AI" (score ≥ 66) | 5% | 86% |
+| Style mode: "likely human" (score < 52) | 91% | 9% |
+
+On genres the model never trained on (emails, cover letters, LinkedIn posts, blog posts, business reports), it catches 76% of AI text.
+
+**By genre (deep mode):**
+- **AI fiction:** 92–100% caught, up from about 50% before the fiction data was added.
+- **Human fiction:** 0% wrongly flagged.
+- **Human essays:** 12% wrongly flagged at the raw 50 cut-off (down from 16%); the 5% "likely AI" threshold keeps actual accusations rarer.
+- **Human Q&A answers:** 10% wrongly flagged.
+
+AI-polished human text lands anywhere, which is expected.
+
+### How much text does it need? (no graphics card required)
+
+| Text length | Accuracy |
+|---|---|
+| 50 words | 61% (unreliable) |
+| 100 words | 68% (unreliable) |
+| 200 words | 80% |
+| **300 words (≈1 page)** | **88%** |
+| 1,000 words (≈3 pages) | **95%** |
+| 3,000 words (≈10 pages) | **95%**, 3% of human documents wrongly flagged |
+| 6,000 words (≈20 pages) | 100% on 14 test documents (small sample) |
+
+Long documents are measured by joining held-out texts of the same kind; the model never saw any of them. There's no upper limit on length: long documents are also scored section by section (about 250 words each), so a mixed document shows which parts read as AI.
+
+**Speed on an ordinary laptop CPU:**
+
+| Document | Style score | Deep score (GPT-2) |
+|---|---|---|
+| 1,000 words | 0.5 s | 3 s |
+| 5,000 words | 2 s | 14 s |
+| 20,000 words (≈65 pages) | 7 s | 24 s |
+| 60,000 words (≈200 pages) | 19 s | 25 s |
+
+Deep mode reads the text in a single GPT-2 pass. Beyond about 9,000 words it scores 12,000 evenly spaced tokens instead of every one, since its features are averages. A whole book therefore takes under half a minute.
 
 ### Humanizing benchmark
 

@@ -27,10 +27,12 @@ from extract_text import extract  # noqa: E402
 SPLIT_RE = re.compile(r"(?<=[.!?])[\"')\]]?\s+(?=[\"'(\[*]?[A-Z0-9])")
 
 
-def sentence_ppl(sentence):
+def sentence_ppl_map(text):
+    """Perplexity per sentence from ONE GPT-2 pass over the whole text, keyed
+    by the sentence's first 60 normalized characters."""
     import perplexity
-    _, lp, _, _ = perplexity.token_stats(sentence)
-    return math.exp(-sum(lp) / len(lp)) if lp else None
+    f = perplexity.features(text) or {}
+    return {" ".join(s.split())[:60]: p for s, p in f.get("sentence_ppl", [])}
 
 
 def section_scores(text):
@@ -49,6 +51,7 @@ def score_sentences(text, deep):
     """[(kind, payload)] blocks; paragraphs carry [(sentence, score, reasons)]."""
     out = []
     sec = section_scores(text)
+    ppl_map = sentence_ppl_map(text) if deep else {}
     for block in re.split(r"\n\s*\n", text):
         b = block.strip()
         if not b:
@@ -73,7 +76,7 @@ def score_sentences(text, deep):
                     if base >= 0.6:
                         reasons = [f"section reads as AI ({base:.0%})"] + reasons
                 if deep and len(s.split()) >= 5:
-                    ppl = sentence_ppl(s)
+                    ppl = ppl_map.get(" ".join(s.split())[:60])
                     if ppl:
                         p = max(0.0, min(1.0, (70 - ppl) / 55))
                         score = 0.5 * score + 0.5 * p

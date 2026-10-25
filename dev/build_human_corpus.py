@@ -264,9 +264,100 @@ def peps(n=40):
     return out
 
 
+def gutenberg_modern(n=80):
+    """Public-domain fiction and essays from 1900-1928, so human fiction isn't
+    only 19th-century prose (the model mustn't learn 'old-fashioned = human')."""
+    books = {805: ("This Side of Paradise", "literary"), 64317: ("The Great Gatsby", "literary"),
+             543: ("Main Street", "literary"), 242: ("My Antonia", "literary"), 5670: ("Jacob's Room", "literary"),
+             2814: ("Dubliners", "literary"), 416: ("Winesburg, Ohio", "literary"),
+             4217: ("Portrait of the Artist", "literary"), 215: ("The Call of the Wild", "literary"),
+             1429: ("The Garden Party", "literary"), 2776: ("The Four Million", "literary"),
+             8092: ("Tremendous Trifles", "essay"), 386: ("Virginibus Puerisque", "essay"),
+             70: ("What Is Man", "essay"), 64457: ("The Common Reader", "essay"),
+             1786: ("And Even Now", "essay"), 4280: ("Heretics", "essay"), 3070: ("Essays of Elia", "essay")}
+    out = []
+    for bid, (name, genre) in books.items():
+        try:
+            raw = get(f"https://www.gutenberg.org/cache/epub/{bid}/pg{bid}.txt").replace("\r\n", "\n")
+        except Exception as e:
+            print("skip", name, e)
+            continue
+        body = raw.split("*** START", 1)[-1].split("*** END", 1)[0]
+        body = re.sub(r"(?<!\n)\n(?!\n)", " ", body)
+        paras = [p for p in re.split(r"\n\s*\n", body) if words(p) > 30]
+        if len(paras) < 30:
+            continue
+        for start in random.sample(range(5, len(paras) - 8), 5):
+            w = window("\n\n".join(paras[start:start + 8]), 200, 420)
+            if w:
+                out.append({"text": w, "source": f"gutenberg_modern:{name}", "genre": genre})
+    random.shuffle(out)
+    return out[:n]
+
+
+def paulgraham2(n=50):
+    """More polished modern human essays - the genre most often wrongly flagged."""
+    slugs = ["avg", "hp", "say", "gh", "nerds", "taste", "love", "ds", "startupideas", "growth", "wealth",
+             "ideas", "marginal", "procrastination", "stuff", "jessica", "bias", "lies", "discover", "before",
+             "boss", "fierce", "gap", "future", "noob", "schlep", "really", "relres", "copy", "mean",
+             "credentials", "foundermode", "when", "newideas", "users", "pow", "cities", "identity",
+             "disagree", "popular", "desres", "lesson", "top", "hiring", "determination", "ambitious",
+             "genius", "13sentences", "speak", "heroes", "vb", "fh", "gba", "kate", "smart"]
+    out = []
+    for s in slugs:
+        try:
+            html = get(f"https://paulgraham.com/{s}.html")
+        except Exception:
+            continue
+        text = re.sub(r"<br\s*/?>", "\n", html, flags=re.I)
+        text = re.sub(r"<[^>]+>", "", text)
+        text = re.sub(r"&\w+;", " ", text)
+        text = re.sub(r"\n{3,}", "\n\n", text)
+        m = re.search(r"((January|February|March|April|May|June|July|August|September|October|November|December) \d{4})", text)
+        if m:
+            text = text[m.end():]
+        # take a passage from the middle too, not just openings
+        paras = [p for p in re.split(r"\n\s*\n", text) if words(p) > 25]
+        if len(paras) > 12:
+            text = "\n\n".join(paras[len(paras) // 3:])
+        w = window(text, 200, 450)
+        if w:
+            out.append({"text": w, "source": f"paulgraham2:{s}", "genre": "essay"})
+        if len(out) >= n:
+            break
+    return out
+
+
+def stackexchange2(n=90):
+    import gzip
+    import html as html_mod
+    sites = ["english", "academia", "philosophy", "history", "scifi", "music", "movies", "interpersonal",
+             "literature", "linguistics", "fitness", "rpg"]
+    out = []
+    for site in sites:
+        url = (f"https://api.stackexchange.com/2.3/answers?order=desc&sort=votes&pagesize=12"
+               f"&todate=1577836800&site={site}&filter=withbody")
+        raw = subprocess.run(["curl", "-sSL", "--compressed", "--max-time", "60", url],
+                             capture_output=True, check=True).stdout
+        if raw[:2] == b"\x1f\x8b":
+            raw = gzip.decompress(raw)
+        for item in json.loads(raw.decode("utf-8")).get("items", []):
+            body = item.get("body", "")
+            body = re.sub(r"<pre.*?</pre>|<code>.*?</code>|<blockquote>.*?</blockquote>", " ", body, flags=re.S)
+            body = re.sub(r"<li>", "\n- ", body)
+            body = re.sub(r"</p>|<br\s*/?>|</h\d>", "\n\n", body)
+            text = html_mod.unescape(re.sub(r"<[^>]+>", "", body))
+            text = re.sub(r"\n{3,}", "\n\n", text).strip()
+            if 150 <= words(text) <= 600:
+                out.append({"text": text, "source": f"stackexchange2:{site}", "genre": "qa"})
+    random.shuffle(out)
+    return out[:n]
+
+
 def main():
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    sources = (newsgroups, arxiv, wikipedia, gutenberg, paulgraham, stackexchange, wikinews, peps)
+    sources = (newsgroups, arxiv, wikipedia, gutenberg, paulgraham, stackexchange, wikinews, peps,
+               gutenberg_modern, paulgraham2, stackexchange2)
     # optional: only (re)fetch named sources and replace just those rows
     only = set(sys.argv[1:])
     rows = []

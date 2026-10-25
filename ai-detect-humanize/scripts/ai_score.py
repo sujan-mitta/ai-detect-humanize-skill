@@ -106,6 +106,19 @@ HEDGE_RES = [re.compile(p, re.I) for p in [
     r"\bit is (widely )?(recognized|believed|accepted|known)\b",
 ]]
 
+# AI fiction tells (ai-patterns.md section 10, creative writing)
+FICTION_RES = [re.compile(p, re.I) for p in [
+    r"\b(elara|lyra|kael|aria|seraphina|thorne|elowen|caelum|zephyr|evelyn chen|sarah chen|marcus chen)\b",
+    r"\bthe air (was|hung) (thick|heavy) with\b", r"\b(a|the) smile tugg(ed|ing) at\b", r"\bbarely above a whisper\b",
+    r"\bthe weight of\b", r"\b(something|everything) shifted\b", r"\blittle did (she|he|they) know\b",
+    r"\beyes (sparkling|glinting|gleaming) with\b", r"\ba (mix|mixture) of [a-z]+ and [a-z]+\b",
+    r"\b(couldn'?t|could not) help but\b", r"\bunspoken\b", r"\b(a|the) testament to\b", r"\bfor the first time in (years|forever|a long time)\b",
+    r"\b(heart|pulse) (raced|pounded|hammered)\b", r"\bhe let out a breath (he|she) didn'?t know\b",
+    r"\bbreath (she|he|they) didn'?t (know|realize)\b", r"\bsend(ing)? shivers down\b", r"\bin that moment\b",
+    r"\b(her|his|their) voice (cracked|softened|trembled)\b", r"\bsomething (like|akin to) (hope|grief|relief)\b",
+    r"\bwhispered,? (as if|like)\b", r"\bthe silence (stretched|hung|settled)\b",
+]]
+
 # What models write when asked to "sound human" (ai-patterns.md section 9)
 PERFORMED_VOICE_RES = [re.compile(p, re.I) for p in [
     r"(^|[.!?]\s+)(look|listen|honestly|seriously|truth is)[,?:]", r"\bhere'?s the (thing|kicker|deal)\b",
@@ -189,7 +202,8 @@ FEATURE_LABELS = {
     "commas_per_sentence": "commas per sentence", "semicolons_per_1k": "semicolons", "parens_per_1k": "parentheses",
     "questions_per_1k": "questions", "exclaims_per_1k": "exclamation marks", "first_person_per_1k": "first person (I/me/my)",
     "digits_per_1k": "specific numbers", "proper_nouns_per_1k": "names and proper nouns",
-    "bold_leads_per_1k": "bold lead-ins", "log_perplexity": "GPT-2 perplexity (predictability)",
+    "bold_leads_per_1k": "bold lead-ins", "fiction_cliches_per_1k": "AI fiction clichés",
+    "dialogue_ratio": "dialogue", "log_perplexity": "GPT-2 perplexity (predictability)",
     "top1_fraction": "words GPT-2 guessed exactly", "top10_fraction": "words in GPT-2's top 10",
     "rare_fraction": "surprising word choices", "sentence_ppl_cv": "perplexity variety across sentences",
 }
@@ -492,6 +506,9 @@ def analyze(text):
         "digits_per_1k": round(len(re.findall(r"\d+", prose)) * true_k, 2),
         "proper_nouns_per_1k": round(len(PROPER_RE.findall(prose)) * true_k, 2),
         "bold_leads_per_1k": round(bold_labels * true_k, 2),
+        "fiction_cliches_per_1k": round(len(find_all(FICTION_RES, prose)) * true_k, 2),
+        "dialogue_ratio": round(sum(len(q) for q in re.findall(r"[\"“][^\"”\n]{2,400}[\"”]", prose))
+                                / max(1, len(prose)), 3),
     }
     sig = {
         "burstiness": clamp((0.65 - cv) / 0.40),
@@ -540,10 +557,18 @@ def analyze(text):
     }
 
 
-def verdict(score):
-    if score >= 60:
+def bands(kind="style"):
+    """(likely-AI threshold, likely-human threshold). Set in calibration so that
+    at most 5% of human texts reach 'likely AI'; defaults if no model is present."""
+    th = load_models().get(kind, {}).get("thresholds") if MODEL_PATH.exists() else None
+    return (th["ai"], th["human"]) if th else (60, 40)
+
+
+def verdict(score, kind="style"):
+    t_ai, t_human = bands(kind)
+    if score >= t_ai:
         return "likely AI"
-    if score >= 40:
+    if score >= t_human:
         return "mixed / possibly AI-assisted"
     return "likely human"
 
@@ -636,7 +661,7 @@ def build(text, deep=False):
                     cal["tell_net"] = round(p_tell, 2)
                     overall["calibrated"] = cal
                     overall["score"] = cal["score"]
-                    overall["verdict"] = verdict(cal["score"])
+                    overall["verdict"] = verdict(cal["score"], "deep")
     secs = []
     for title, body in sections(text):
         a = analyze(body)
@@ -645,8 +670,9 @@ def build(text, deep=False):
     # A document whose sections clearly disagree is reported as mixed: averaging a
     # human half with an AI half would otherwise hide the AI half.
     solid = [s for s in secs if s["words"] >= 100]
-    ai_secs = [s for s in solid if s["score"] >= 60]
-    if ai_secs and any(s["score"] < 40 for s in solid) and overall["score"] < 60:
+    t_ai, t_human = bands()
+    ai_secs = [s for s in solid if s["score"] >= t_ai]
+    if ai_secs and any(s["score"] < t_human for s in solid) and overall["score"] < t_ai:
         overall["mixed"] = {"ai_sections": [s["title"] for s in ai_secs], "of": len(solid)}
         overall["verdict"] = f"mixed - {len(ai_secs)} of {len(solid)} sections read as AI"
     overall["flagged_sentences"] = sentence_flags(overall.pop("_sentences"))

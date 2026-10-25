@@ -237,6 +237,6 @@ The scorer was fitted on ~370 labelled texts: human writing from 1990s Usenet, p
   - AI vocabulary was *more* varied word-to-word (a higher moving type-token ratio) — models avoid repeating words, while people happily reuse the same word.
   - People **repeat phrases** across a text more than models do.
 - **GPT-2 perplexity** (how predictable each word is to a small language model) separates the two well: AI text is more predictable, with more of its words falling in the model's top-10 guesses.
-- **Hard cases:** polished human essays get flagged as AI more often than any other human genre; AI asked to write fiction "like a real author" is the most likely to slip through.
+- **Hard cases:** polished human essays and expert Q&A answers get flagged as AI more often than other human genres (10–16% at the raw cut-off). AI fiction used to slip through about half the time; after training on 106 AI stories and modern human fiction, 92–100% is caught. AI fiction rarely uses the famous clichés ("barely above a whisper" appeared in only 4% of samples). What gives it away is predictability to GPT-2 and tidy structure: every scene resolves, emotions are named, and sentences are evenly paced.
 
 So when auditing, weigh rhythm, specificity and structure above vocabulary, and when humanizing, the highest-leverage changes are: vary sentence length, add the specifics the source already has (numbers, names, examples), allow the odd parenthesis or semicolon where it fits the register, break up triads, and drop bold lead-ins and paragraph wrap-ups.
