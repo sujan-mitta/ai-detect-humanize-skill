@@ -60,6 +60,14 @@ AI_DIRECTION = {
 # parentheses in a short text - can't swing the whole score.
 LOG_FEATURES = {f for f in STYLE_FEATURES if f.endswith("_per_1k")} | {"chatbot_artifacts", "performed_voice_tics"}
 DEEP_FEATURES = ["log_perplexity", "top1_fraction", "top10_fraction", "rare_fraction", "sentence_ppl_cv"]
+# "max" tier: pretrained AI-text classifiers + Binoculars (scripts/neural.py)
+# Binoculars (CPU-sized SmolLM2 pair) is weak alone (AUC 0.42) but in the ensemble it
+# lifts held-out genres from 79% to 86% caught, so the max tier keeps all three.
+NEURAL_FEATURES = ["fakespot", "desklib", "binoculars"]
+# Binoculars should be lower for machine text, but with the small CPU-sized
+# SmolLM2 pair it measured AUC 0.42 stand-alone (weak and inverted), so it is
+# left unconstrained and the trees decide how much to trust it.
+AI_NEGATIVE = set()
 
 
 def load_corpus():
@@ -104,17 +112,29 @@ def extract_features(rows, deep):
     if changed:
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         cache_path.write_text("\n".join(json.dumps(c) for c in cache.values()), encoding="utf-8")
+    neural_path = ROOT / "runs" / "neural.jsonl"
+    if neural_path.exists():
+        neural = {}
+        for line in neural_path.read_text(encoding="utf-8").splitlines():
+            d = json.loads(line)
+            neural[d["id"]] = d["neural"]
+        for r in rows:
+            r["neural"] = neural.get(r["id"])
     return rows
 
 
-def matrix(rows, names, deep):
+def matrix(rows, names, deep=None):
+    """Feature matrix for `names`, taking each from the style, GPT-2 or neural features."""
     X = []
     for r in rows:
-        v = [math.log1p(max(0.0, float(r["feat"][k]))) if k in LOG_FEATURES else float(r["feat"][k])
-             for k in STYLE_FEATURES]
-        if deep:
-            d = r["deep"] or {}
-            v += [float(d.get(k) if d.get(k) is not None else np.nan) for k in DEEP_FEATURES]
+        v = []
+        for k in names:
+            if k in STYLE_FEATURES:
+                x = float(r["feat"][k])
+                v.append(math.log1p(max(0.0, x)) if k in LOG_FEATURES else x)
+            else:
+                src = (r.get("deep") if k in DEEP_FEATURES else r.get("neural")) or {}
+                v.append(float(src[k]) if src.get(k) is not None else np.nan)
         X.append(v)
     X = np.array(X)
     # impute missing deep values with column medians
@@ -154,7 +174,8 @@ def make_gb(names):
     from sklearn.ensemble import HistGradientBoostingClassifier
     return HistGradientBoostingClassifier(
         learning_rate=0.05, max_iter=300, min_samples_leaf=20, class_weight="balanced", random_state=0,
-        monotonic_cst=[1 if n in AI_DIRECTION else 0 for n in names])
+        monotonic_cst=[1 if n in AI_DIRECTION or n in ("fakespot", "desklib") else -1 if n in AI_NEGATIVE else 0
+                       for n in names])
 
 
 def cv_predict_gb(X, y, names, seed=0):
@@ -291,6 +312,13 @@ def main():
         results["deep_cv"] = report("Boosted trees: style + GPT-2 features (5-fold CV) - deployed", train, oof["deep"])
         models["deep"] = fit_gb(Xd, y, names)
         sets.append(("deep", names, True))
+        if sum(1 for r in train if r.get("neural")) >= 0.95 * len(train):
+            names3 = STYLE_FEATURES + DEEP_FEATURES + NEURAL_FEATURES
+            Xm = matrix(train, names3)
+            oof["max"] = cv_predict_gb(Xm, y, names3)
+            results["max_cv"] = report("Boosted trees: style + GPT-2 + neural detectors (5-fold CV) - deployed", train, oof["max"])
+            models["max"] = fit_gb(Xm, y, names3)
+            sets.append(("max", names3, True))
 
     # Verdict thresholds from out-of-fold scores: "likely AI" needs a score that at
     # most 5% of human texts reach; "likely human" a score below which at most 10%

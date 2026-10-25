@@ -9,7 +9,7 @@ A [Claude skill](https://docs.claude.com/en/docs/agents-and-tools/agent-skills/o
 | Step | What happens |
 |---|---|
 | **Read** | Extracts `.pdf`, `.docx`, `.txt`, `.md` or pasted text, keeping headings, lists and tables (PDF paragraphs and headings are reconstructed) |
-| **Detect** | A trained model gives a 0–100 AI-likeness score, explains what pushed it toward AI or human, scores each section (so a half-human, half-AI document shows up as *mixed*), and lists the most AI-sounding sentences |
+| **Detect** | A trained model (three tiers: style, `--deep` with GPT-2, `--max` with neural AI-text classifiers) gives a 0–100 AI-likeness score, explains what pushed it toward AI or human, scores each section (so a half-human, half-AI document shows up as *mixed*), and lists the most AI-sounding sentences |
 | **Deep mode** | Optional GPT-2 perplexity features (how predictable each word is), the signal tools like GPTZero use |
 | **Heatmap** | An HTML report that highlights every sentence by how AI-like it reads, with reasons on hover, plus a side-by-side before/after view |
 | **Humanize** | Long documents are split into ~900-word chunks so nothing gets summarized away. Each chunk is rewritten following a catalog of AI writing patterns and a writing guide |
@@ -29,23 +29,25 @@ The model was trained and cross-validated on **1,122 labelled texts**:
 |---|---|---|---|---|
 | Old hand-tuned rules (v1) | 0.51 on Claude-only data | — | 16% | — |
 | Style model (default) | 0.973 | 90.8% | 90.8% | 9.1% |
-| Style + GPT-2 (`--deep`) | **0.981** | **93.4%** | **93.3%** | **6.5%** |
+| Style + GPT-2 (`--deep`) | 0.981 | 93.4% | 93.3% | 6.5% |
+| **Max: + neural detectors (`--max`)** | **0.990** | **95.5%** | **95.0%** | **4.1%** |
 
 **Verdicts are tuned to avoid false accusations.** The "likely AI" cut-off is set from the data so that only 5% of human texts reach it. Borderline texts get "mixed / uncertain" instead.
 
 | Verdict | Human texts | AI texts |
 |---|---|---|
+| Max mode: "likely AI" (score ≥ 47) | 5% | **95%** |
 | Deep mode: "likely AI" (score ≥ 57) | 5% | 91% |
 | Style mode: "likely AI" (score ≥ 66) | 5% | 86% |
 | Style mode: "likely human" (score < 52) | 91% | 9% |
 
-On genres the model never trained on (emails, cover letters, LinkedIn posts, blog posts, business reports), it catches 76% of AI text.
+On genres the model never trained on (emails, cover letters, LinkedIn posts, blog posts, business reports), it catches 86% of AI text in max mode (76% in style or deep mode).
 
-**By genre (deep mode):**
-- **AI fiction:** 92–100% caught, up from about 50% before the fiction data was added.
-- **Human fiction:** 0% wrongly flagged.
-- **Human essays:** 12% wrongly flagged at the raw 50 cut-off (down from 16%); the 5% "likely AI" threshold keeps actual accusations rarer.
-- **Human Q&A answers:** 10% wrongly flagged.
+**By genre (max mode):**
+- **AI fiction:** 94–100% caught, up from about 50% before the fiction data was added.
+- **Human fiction:** 2% wrongly flagged.
+- **Human essays:** 8% wrongly flagged (down from 16% in style mode).
+- **Human Q&A answers:** 4% wrongly flagged (down from 11%).
 
 AI-polished human text lands anywhere, which is expected.
 
@@ -122,7 +124,7 @@ cp -r ai-detect-humanize ~/.claude/skills/
 pip install pypdf python-docx
 ```
 
-Optional, for deep mode (downloads ~500 MB of GPT-2 the first time):
+Optional, for `--deep` and `--max` (no graphics card needed). The first run downloads GPT-2 (~500 MB) for `--deep`, plus the fakespot, desklib and Binoculars (SmolLM2) models (~3.7 GB) for `--max`:
 
 ```bash
 pip install torch transformers
@@ -153,7 +155,7 @@ python ai-detect-humanize/scripts/style_profile.py my_old_essay.txt my_emails.tx
 
 1. **Clean the text.** Code, links, URLs, citations like *(Smith et al., 2019)*, bracketed statistics like *(n = 214)*, acronym definitions and LaTeX are removed first, so they can't be mistaken for writing style.
 2. **Measure 30 style features.** Sentence and paragraph rhythm, vocabulary variety, punctuation habits (parentheses, semicolons, em dashes, questions), specificity (numbers, names), first person, contractions, and the AI patterns from the catalog (stock phrases, participial tails, "not X but Y" frames, rule-of-three lists, bold lead-ins, chatbot leftovers, fake-casual tics).
-3. **Optionally add five GPT-2 features** (`--deep`): perplexity, top-1 and top-10 token rates, rare-word rate, and perplexity variation across sentences.
+3. **Optionally add five GPT-2 features** (`--deep`): perplexity, top-1 and top-10 token rates, rare-word rate, and perplexity variation across sentences. `--max` also adds the AI probability from two pretrained neural classifiers (fakespot RoBERTa and desklib DeBERTa-v3) and the Binoculars score (SmolLM2-360M base vs instruct), averaged over up to six evenly spaced chunks. Binoculars is weak alone with CPU-sized models, but it lifts AI caught in unseen genres from 79% to 86%.
 4. **Score with gradient-boosted trees**, with the confidence calibrated (Platt scaling) so the score works as a probability. Known AI tells are constrained so they can only ever push the score toward AI. The trees are exported to `model.json` and run in plain Python, so scikit-learn isn't needed at runtime.
 5. **Apply a safety net for dense AI tells.** Short texts stuffed with classic phrases ("leveraging", "spearheaded", "Let's connect!") give the model too little to go on. A second score built only from known tells is therefore combined with the model's. It only switches on above 2.7 tells per 100 words, the highest density found in any of the 394 human texts, so it added no false positives on that corpus.
 6. **Flag mixed documents.** When some sections read as AI and others as human, the verdict says "mixed" and names the AI sections, instead of averaging them away.
@@ -174,6 +176,7 @@ ai-detect-humanize/                # the skill
 │   ├── chunk_text.py              # split long texts into chunks
 │   ├── ai_score.py                # calibrated AI-likeness scorer + explanations
 │   ├── perplexity.py              # GPT-2 deep features
+│   ├── neural.py                  # neural AI-text classifiers (--max)
 │   ├── html_report.py             # sentence heatmap / before-after page
 │   ├── verify_rewrite.py          # fact-preservation check
 │   ├── style_profile.py           # voice profile + match score
@@ -183,6 +186,8 @@ ai-detect-humanize/                # the skill
 dev/                               # tooling to rebuild the model
 ├── build_human_corpus.py          # downloads the human corpus
 ├── calibrate.py                   # trains + cross-validates, writes model.json
+├── neural_features.py             # runs the neural classifiers over the corpus
+├── long_doc_test.py               # accuracy on long documents
 ├── humanize_bench.py              # measures humanizing results
 └── make_eval_cases.py             # generates eval case folders
 ai-detect-humanize.skill           # packaged skill for upload

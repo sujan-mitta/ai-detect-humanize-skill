@@ -217,21 +217,25 @@ def load_models():
     return _MODELS
 
 
-def model_score(raw, deep=None):
+def model_score(raw, deep=None, kind=None):
     """Calibrated probability (0-100) from model.json, with per-feature contributions.
 
-    Uses the deep model when GPT-2 features are given, else the style model.
+    kind: "style", "deep" (style + GPT-2) or "max" (style + GPT-2 + neural
+    detectors); by default "deep" when extra features are given, else "style".
     Returns None when no trained model is present (heuristic score is used).
     """
     models = load_models()
-    m = models.get("deep") if deep and "deep" in models else models.get("style")
+    kind = kind or ("deep" if deep else "style")
+    if kind not in models:
+        kind = "deep" if deep and "deep" in models else "style"
+    m = models.get(kind)
     if not m:
         return None
     logs = set(m.get("log_features", []))
     values = [raw.get(name, (deep or {}).get(name)) for name in m["features"]]
     values = [math.log1p(max(0.0, v)) if (n in logs and v is not None) else v for n, v in zip(m["features"], values)]
     if m.get("type") == "gb":
-        return gb_score(m, values, "deep" if m is models.get("deep") else "style")
+        return gb_score(m, values, kind)
     contrib = []
     z = m["intercept"]
     for name, v, mu, sd, c in zip(m["features"], values, m["mean"], m["scale"], m["coef"]):
@@ -645,23 +649,31 @@ def sentence_flags(sents, limit=12):
     return [{"sentence": s[:300], "reasons": r} for _, s, r in scored[:limit]]
 
 
-def build(text, deep=False):
+def build(text, deep=False, max_mode=False):
     overall = analyze(text)
-    if deep:
+    if deep or max_mode:
         import perplexity
         if not perplexity.available():
-            print("NOTE: --deep needs `pip install torch transformers`; using the style model.", file=sys.stderr)
+            print("NOTE: --deep/--max need `pip install torch transformers`; using the style model.", file=sys.stderr)
         else:
             feats = perplexity.features(text)
+            kind = "deep"
+            if feats and max_mode:
+                import neural
+                nf = neural.features(text)
+                if nf:
+                    overall["neural"] = nf
+                    feats = {**feats, **nf}
+                    kind = "max" if "max" in load_models() else "deep"
             if feats:
                 overall["deep"] = {k: v for k, v in feats.items() if k != "sentence_ppl"}
-                cal = model_score(overall["raw"], feats)
+                cal = model_score(overall["raw"], feats, kind)
                 if cal:
                     cal["score"], p_tell = apply_tell_net(cal["score"], overall["raw"]["tells_per_100w"])
                     cal["tell_net"] = round(p_tell, 2)
                     overall["calibrated"] = cal
                     overall["score"] = cal["score"]
-                    overall["verdict"] = verdict(cal["score"], "deep")
+                    overall["verdict"] = verdict(cal["score"], cal["model"])
     secs = []
     for title, body in sections(text):
         a = analyze(body)
@@ -672,7 +684,11 @@ def build(text, deep=False):
     solid = [s for s in secs if s["words"] >= 100]
     t_ai, t_human = bands()
     ai_secs = [s for s in solid if s["score"] >= t_ai]
-    if ai_secs and any(s["score"] < t_human for s in solid) and overall["score"] < t_ai:
+    # Below the AI threshold any clearly human section makes it "mixed"; above it,
+    # only a strongly human section does (so one plain paragraph in an AI document
+    # doesn't soften the verdict).
+    human_cut = t_human if overall["score"] < t_ai else t_human * 0.4
+    if ai_secs and any(s["score"] < human_cut for s in solid):
         overall["mixed"] = {"ai_sections": [s["title"] for s in ai_secs], "of": len(solid)}
         overall["verdict"] = f"mixed - {len(ai_secs)} of {len(solid)} sections read as AI"
     overall["flagged_sentences"] = sentence_flags(overall.pop("_sentences"))
@@ -697,7 +713,7 @@ def render(result, source, before=None):
     if cal:
         models = load_models()
         cv = models.get("cv", {}).get(f"{cal['model']}_cv", {})
-        how = "style + GPT-2 perplexity" if cal["model"] == "deep" else "writing style"
+        how = {"deep": "style + GPT-2 perplexity", "max": "style + GPT-2 + neural AI-text detectors"}.get(cal["model"], "writing style")
         lines.append(f"Model: calibrated on {models.get('trained_on', {}).get('n_train', '?')} labelled texts using {how}"
                      + (f" (cross-validated accuracy {cv['accuracy']:.0%}, AUC {cv['auc']:.2f})" if cv else ""))
         if result.get("deep"):
@@ -768,11 +784,12 @@ def main():
     ap.add_argument("--json", help="write full results as JSON here")
     ap.add_argument("--compare", help="JSON from an earlier run, to show before/after")
     ap.add_argument("--deep", action="store_true", help="add GPT-2 perplexity features (needs torch + transformers)")
+    ap.add_argument("--max", action="store_true", help="most accurate: GPT-2 + neural detectors (downloads ~2.5 GB once)")
     ap.add_argument("--html", help="also write an interactive sentence-heatmap report here")
     args = ap.parse_args()
 
     text = extract(args.input)
-    result = build(text, deep=args.deep)
+    result = build(text, deep=args.deep, max_mode=args.max)
     before = json.loads(Path(args.compare).read_text(encoding="utf-8")) if args.compare else None
     report = render(result, args.input, before)
 
