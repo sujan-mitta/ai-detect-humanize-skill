@@ -40,6 +40,8 @@ When genres *are* seen in training but individual sources and authors are held o
 
 **Older and weaker generators.** Style cues are generator-specific: a style model trained on GPT-2/OPT/LLaMA-1/BLOOM-class output as well as modern text got *worse* on both (AUC 0.96 -> 0.78). So the style model stays modern-only, and `--max` adds a second "legacy" head that sees only predictability features (GPT-2 statistics, Binoculars, the two neural classifiers) and is trained on ours plus 300 benchmark texts. The higher of the two scores is used; the legacy head can only add detections. On 316 benchmark texts (COLING-2025 dev and RAID; none used in training), max mode catches **75% of AI at 1% human false positives (AUC 0.96)**, up from 27% before the head existed. Split by source: RAID (a benchmark the head never saw) 83% caught / 0% flagged; COLING (same benchmark family as its training sample, so optimistic) 71% / 2%. Style and deep modes do not have this head and stay close to chance on those generators. On our own corpus the head costs almost nothing (86% -> 85% caught, 1.7% -> 1.6% flagged).
 
+**False positives on genres it never saw.** 160 human texts from three genres never used in training (legal bill summaries, statute text, medical textbook passages) were all scored: 0 flagged as likely AI, 97-98% read as human (max mode).
+
 **Weak spots, stated plainly:**
 - **Technical writing** is the weakest genre: about 63% of AI text caught when the genre is unseen (it was 23-35% before adding real documentation and tutorial text; 96% when the genre is seen).
 - **Formal human prose:** government reports are flagged 7% of the time; academic abstracts 3%.
