@@ -39,3 +39,8 @@ Grouped run crashed on a print (GENRES None) - fixed.
 
 ## v2 adopted (gate 4 passed): +160 human (GAO/CRS, RFC) +160 matched AI
 LOGO max: AUC 0.970->0.972; AI caught at 1% human FP 73%->79%, 0.5% 68%->74%; report recall 76->88%, technical 27->35%; human FP: academic 10->3%, report 6->5%, encyclopedic 5->10% (worse), review 6%. Style: AUC .960->.969, technical 23->37, report 37->69. Technical remains weakest (35%). Grouped protocol (genres seen): max AUC 0.998, 98% AI caught at 1% FP; optimistic since topics/prompt styles are shared - report as upper bound.
+
+## v3 (weak-spot round)
+- Technical: +98 human tutorial/doc passages (CPython 3.9, Linux 5.4, Rust book 2019, Pro Git) + 98 matched AI. LOGO technical recall: style 37->65%, max 35->59%; overall max AUC 0.972->0.975, AI caught at 1% FP 79%->77% (noise-level; report FP unchanged at 6%).
+- Legacy head (predictability-only, ours + 300 COLING-train texts, max-combined = max(modern, rescaled legacy)): external 316 texts 30%->79% AI caught, human flagged 2.5%->3.2%; RAID (unseen) 88%/0%; own corpus 84%->83% caught, 1.9%->1.7% flagged. Gate passed.
+- Not fixed: formal human prose FP (5-10%), fiction (~70%), casual/humanized (~76%), style/deep modes on legacy generators.

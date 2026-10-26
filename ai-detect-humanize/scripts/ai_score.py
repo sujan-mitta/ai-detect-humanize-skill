@@ -233,6 +233,24 @@ def load_models():
     return _MODELS
 
 
+def apply_legacy(res, leg, raw, deep):
+    """Second head for older / weaker generators (GPT-2, OPT, LLaMA-1, BLOOM class).
+
+    The style model is trained on modern chat-LLM text and is near chance on those
+    generators; predictability features (GPT-2, Binoculars, neural detectors) are not tied to
+    one writing style. The legacy head sees only those features. Its score is rescaled so
+    its own verdict threshold lands on the modern model's, and the higher of the two is
+    used, so it can only add detections. It never lowers a score."""
+    values = [raw.get(n, (deep or {}).get(n)) for n in leg["features"]]
+    if any(v is None for v in values):
+        return res
+    p = gb_score(leg, values, "legacy")["score"]
+    boosted = min(100, round(p * leg["scale"]))
+    if boosted > res["score"]:
+        res = dict(res, score=boosted, legacy=True)
+    return res
+
+
 def model_score(raw, deep=None, kind=None):
     """Calibrated probability (0-100) from model.json, with per-feature contributions.
 
@@ -251,7 +269,11 @@ def model_score(raw, deep=None, kind=None):
     values = [raw.get(name, (deep or {}).get(name)) for name in m["features"]]
     values = [math.log1p(max(0.0, v)) if (n in logs and v is not None) else v for n, v in zip(m["features"], values)]
     if m.get("type") == "gb":
-        return gb_score(m, values, kind)
+        res = gb_score(m, values, kind)
+        leg = models.get("legacy") if kind == "max" else None
+        if leg and res:
+            res = apply_legacy(res, leg, raw, deep)
+        return res
     contrib = []
     z = m["intercept"]
     for name, v, mu, sd, c in zip(m["features"], values, m["mean"], m["scale"], m["coef"]):
