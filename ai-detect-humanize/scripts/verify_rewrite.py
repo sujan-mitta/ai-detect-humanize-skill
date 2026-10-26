@@ -151,8 +151,82 @@ def compare(orig_text, new_text):
     pb = len([p for p in re.split(r"\n\s*\n", new_text) if p.strip()])
     result["shape"] = {"words_before": wa, "words_after": wb, "length_ratio": round(wb / max(1, wa), 3),
                        "paragraphs_before": pa, "paragraphs_after": pb}
+    # Negations flip meaning ("works" -> "doesn't work") without changing a single number or name.
+    na, nb = len(NEGATION_RE.findall(orig_text)), len(NEGATION_RE.findall(new_text))
+    result["negations"] = {"before": na, "after": nb}
+    if abs(na - nb) >= 2 or (na > 0) != (nb > 0):
+        result["warnings"]["negations"] = {"gone": [f"{na} negation words in the original"],
+                                           "new": [f"{nb} in the rewrite - check no claim flipped"]}
     result["passed"] = not result["missing"] and not result["added"]
     return result
+
+
+NEGATION_RE = re.compile(r"\b(?:not|no|never|none|neither|nor|cannot|without|hardly|barely)\b|n't\b", re.I)
+
+_EMB = {}
+EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"   # 22M params, ~90 MB, CPU-fast
+
+
+def _embed(sentences):
+    import torch
+    from transformers import AutoModel, AutoTokenizer
+    if "m" not in _EMB:
+        from transformers.utils import logging as hf_logging
+        hf_logging.set_verbosity_error()
+        _EMB["m"] = (AutoTokenizer.from_pretrained(EMBED_MODEL),
+                     AutoModel.from_pretrained(EMBED_MODEL, use_safetensors=True).eval())
+    tok, model = _EMB["m"]
+    out = []
+    with torch.inference_mode():
+        for i in range(0, len(sentences), 32):
+            enc = tok(sentences[i:i + 32], padding=True, truncation=True, max_length=128, return_tensors="pt")
+            h = model(**enc).last_hidden_state
+            m = enc["attention_mask"].unsqueeze(-1).float()
+            v = (h * m).sum(1) / m.sum(1).clamp(min=1e-9)
+            out.append(torch.nn.functional.normalize(v, dim=-1))
+    return torch.cat(out) if out else torch.zeros(0, 384)
+
+
+def semantic_check(orig_text, new_text, floor=0.5):
+    """Sentence-level meaning coverage using a small embedding model.
+
+    The deterministic checks above can't see an invented or dropped claim that contains no
+    number, name or quote. Here every sentence of each text is matched to its most similar
+    sentence in the other: an original sentence whose best match in the rewrite is below
+    `floor` was probably dropped; a rewrite sentence with no good match in the original
+    was probably added. Merged or split sentences still match their parts, so ordinary
+    restructuring is not flagged."""
+    import ai_score
+    def sents(t):
+        return [s for b in ai_score.prose_blocks(t) for s in ai_score.sentences(b)]
+    so, sn = sents(orig_text), sents(new_text)
+    if not so or not sn:
+        return None
+
+    def windows(ss):
+        # 1-3 consecutive sentences: a rewrite often splits one long sentence into several
+        # or merges several into one, and neither should look like dropped/invented content
+        return [" ".join(ss[i:i + k]) for k in (1, 2, 3) for i in range(0, max(1, len(ss) - k + 1))]
+
+    eo, en = _embed(so), _embed(sn)
+    wo, wn = _embed(windows(so)), _embed(windows(sn))
+    best_o = (eo @ wn.T).max(1).values.numpy()      # each original sentence vs the rewrite's windows
+    best_n = (en @ wo.T).max(1).values.numpy()      # each rewrite sentence vs the original's windows
+    claim = lambda s: len(s.split()) >= 6           # fragments ("It changes shape.") carry no checkable claim
+    d_idx = [i for i in best_o.argsort() if best_o[i] < floor and claim(so[i])][:8]
+    a_idx = [j for j in best_n.argsort() if best_n[j] < floor and claim(sn[j])][:8]
+    return {
+        "floor": floor,
+        "document_similarity": round(float((eo.mean(0) @ en.mean(0)) / (eo.mean(0).norm() * en.mean(0).norm())), 3),
+        "dropped": [(so[i], round(float(best_o[i]), 2)) for i in d_idx],
+        "added": [(sn[j], round(float(best_n[j]), 2)) for j in a_idx],
+        "median_match": round(float(np_median(best_o)), 3),
+    }
+
+
+def np_median(a):
+    import statistics
+    return statistics.median(a.tolist())
 
 
 def item_lines(r, side):
@@ -179,12 +253,24 @@ def render(r):
         lines += item_lines(r, "added")
         lines.append("")
     if r["warnings"]:
-        lines.append("## Worth a look (names/acronyms that appeared or disappeared)")
+        lines.append("## Worth a look (names, acronyms and negations that changed)")
         for k, w in r["warnings"].items():
             if w["gone"]:
                 lines.append(f"- {k} gone: " + ", ".join(w["gone"][:15]))
             if w["new"]:
                 lines.append(f"- {k} new: " + ", ".join(w["new"][:15]))
+    sem = r.get("semantic")
+    if sem:
+        lines += ["", f"## Meaning check (sentence embeddings, document similarity {sem['document_similarity']:.2f}, "
+                      f"median sentence match {sem['median_match']:.2f})"]
+        if sem["dropped"]:
+            lines.append("Original sentences with no close counterpart in the rewrite (content possibly dropped):")
+            lines += [f"- ({s}) {t[:200]}" for t, s in sem["dropped"]]
+        if sem["added"]:
+            lines.append("Rewrite sentences with no close counterpart in the original (content possibly invented):")
+            lines += [f"- ({s}) {t[:200]}" for t, s in sem["added"]]
+        if not sem["dropped"] and not sem["added"]:
+            lines.append("Every sentence on both sides has a close counterpart. No dropped or invented claims detected.")
     return "\n".join(lines) + "\n"
 
 
@@ -193,8 +279,15 @@ def main():
     ap.add_argument("original")
     ap.add_argument("rewrite")
     ap.add_argument("--json")
+    ap.add_argument("--semantic", action="store_true",
+                    help="also check meaning with sentence embeddings (needs torch + transformers; ~90 MB model)")
     args = ap.parse_args()
     r = compare(extract(args.original), extract(args.rewrite))
+    if args.semantic:
+        try:
+            r["semantic"] = semantic_check(extract(args.original), extract(args.rewrite))
+        except ImportError:
+            print("NOTE: --semantic needs `pip install torch transformers`; skipped.", file=sys.stderr)
     if args.json:
         Path(args.json).write_text(json.dumps(r, indent=2), encoding="utf-8")
     sys.stdout.reconfigure(encoding="utf-8")

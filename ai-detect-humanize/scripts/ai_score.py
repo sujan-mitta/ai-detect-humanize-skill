@@ -119,6 +119,17 @@ FICTION_RES = [re.compile(p, re.I) for p in [
     r"\bwhispered,? (as if|like)\b", r"\bthe silence (stretched|hung|settled)\b",
 ]]
 
+# Humanizer fingerprints (ai-patterns.md section 13): what AI adds when asked to
+# "humanize" or "make undetectable"
+FILLER_RE = re.compile(r"\b(basically|honestly|literally|actually|pretty much|kinda|sorta|kind of|sort of|"
+                       r"you know|i mean|tbh|ngl|lol|like,|anyway|anyways|stuff like that|or whatever|super)\b", re.I)
+NO_APOSTROPHE_RE = re.compile(r"\b(dont|cant|wont|didnt|doesnt|isnt|wasnt|arent|werent|couldnt|wouldnt|shouldnt|"
+                              r"im|ive|youre|theyre|thats|whats|theres|lets go)\b")
+LOWER_I_RE = re.compile(r"(^|[\s(])i(?=\s|'m|'ve|'d|'ll)")
+PERSONAL_HEDGE_RE = re.compile(r"\b(i think|i guess|i feel like|i'm not sure|i believe|probably|maybe|i suppose|"
+                               r"if you ask me|in my opinion|imo)\b", re.I)
+SECOND_PERSON_RE = re.compile(r"\b(you|your|you're|yours)\b", re.I)
+
 # What models write when asked to "sound human" (ai-patterns.md section 9)
 PERFORMED_VOICE_RES = [re.compile(p, re.I) for p in [
     r"(^|[.!?]\s+)(look|listen|honestly|seriously|truth is)[,?:]", r"\bhere'?s the (thing|kicker|deal)\b",
@@ -203,7 +214,12 @@ FEATURE_LABELS = {
     "questions_per_1k": "questions", "exclaims_per_1k": "exclamation marks", "first_person_per_1k": "first person (I/me/my)",
     "digits_per_1k": "specific numbers", "proper_nouns_per_1k": "names and proper nouns",
     "bold_leads_per_1k": "bold lead-ins", "fiction_cliches_per_1k": "AI fiction clichés",
-    "dialogue_ratio": "dialogue", "log_perplexity": "GPT-2 perplexity (predictability)",
+    "dialogue_ratio": "dialogue", "fillers_per_1k": "casual fillers (basically, honestly...)",
+    "dropped_apostrophes_per_1k": "dropped apostrophes / lowercase i", "ellipses_per_1k": "ellipses",
+    "personal_hedges_per_1k": "personal hedges (I think, probably)", "second_person_per_1k": "addressing 'you'",
+    "conj_start_ratio": "sentences starting And/But/So", "length_alternation": "short-long sentence alternation",
+    "template_prob": "AI-typical sentence templates (learned)",
+    "log_perplexity": "GPT-2 perplexity (predictability)",
     "top1_fraction": "words GPT-2 guessed exactly", "top10_fraction": "words in GPT-2's top 10",
     "rare_fraction": "surprising word choices", "sentence_ppl_cv": "perplexity variety across sentences",
 }
@@ -357,8 +373,42 @@ def strip_markup(text):
     return t
 
 
-def prose_blocks(text):
-    """Paragraphs excluding headings, tables, code, links and citations."""
+_CANON = {ord(c): "'" for c in "‘’‛′ʼ"}
+_CANON.update({ord(c): '"' for c in "“”‟″"})
+_CANON.update({ord(c): " " for c in "   \t"})
+
+
+def canon_typography(t):
+    """Make typography carry no information about where a text came from.
+
+    Curly vs straight quotes, double spaces after full stops, non-breaking spaces and tabs
+    depend on the editor (Word auto-curls quotes; typewriter habits add double spaces; old
+    books are hard-wrapped), not on who wrote the words. In our first corpus these quirks
+    were 100% perfect separators - curly quotes appeared in 140 human texts and 0 AI texts,
+    a double space after a full stop in 163 human and 0 AI texts - so the models could (and
+    the GPT-2 and neural features certainly did) learn 'typographic habit = human', which
+    fails the first time someone pastes an essay out of Word. It also hid contractions
+    (don't written with a curly apostrophe did not match the contraction counter)."""
+    t = t.translate(_CANON)
+    # Detokenise. Some corpora store human text pre-tokenised ("hormone , meaning ... of ."
+    # - the HC3 human answers), which a model would read as "tokenised = human". Spaces before
+    # punctuation, split contractions ("do n't", "it 's") and PTB-style quotes are rejoined.
+    t = re.sub(r" +([,.;:!?%\)\]])", r"\1", t)
+    t = re.sub(r"([\(\[]) +", r"\1", t)
+    t = re.sub(r"(\w) n't\b", r"\1n't", t)
+    t = re.sub(r"(\w) '(s|re|ve|ll|d|m)\b", r"\1'\2", t)
+    t = t.replace("``", '"').replace("''", '"')
+    return re.sub(r" {2,}", " ", t)
+
+
+CANON_VERSION = 2   # 1: quotes/whitespace; 2: + detokenisation (space before punctuation, split contractions)
+
+
+def _canon_v1(t):
+    return re.sub(r" {2,}", " ", t.translate(_CANON))
+
+
+def _prose_blocks_raw(text):
     blocks = []
     for block in re.split(r"\n\s*\n", strip_markup(text)):
         b = block.strip()
@@ -368,6 +418,24 @@ def prose_blocks(text):
         if lines:
             blocks.append(" ".join(l.strip() for l in lines))
     return blocks
+
+
+def prose_blocks(text):
+    """Paragraphs excluding headings, tables, code, links and citations, with typography
+    canonicalised. Every feature extractor (style, GPT-2, neural detectors) reads this."""
+    return [canon_typography(b) for b in _prose_blocks_raw(text)]
+
+
+def detok_changed(text):
+    """True if canonicalisation v2 (detokenisation) changes the text beyond what v1 did, i.e.
+    features computed under v1 are stale for it."""
+    return any(canon_typography(_canon_v1(b)) != _canon_v1(b) for b in _prose_blocks_raw(text))
+
+
+def typography_changed(text):
+    """True if canonicalisation alters this text, i.e. cached model features computed
+    before it was introduced are stale for it."""
+    return any(canon_typography(b) != b for b in _prose_blocks_raw(text))
 
 
 def sentences(text):
@@ -410,7 +478,60 @@ def first_word(sentence):
     return m.group(0).lower() if m else ""
 
 
+# Invisible characters and look-alike letters: the cheapest evasion attacks. On the RAID
+# benchmark homoglyph substitution dropped detectors from 85% to 9% (Originality) and from
+# 80% to 38% (Binoculars) while GPTZero, which normalises, lost under 1%. Normalising
+# first restores the underlying text; the substitutions found are reported as a flag,
+# since ordinary writers almost never produce them.
+ZERO_WIDTH = dict.fromkeys(map(ord, "​‌‍⁠﻿­᠎⁢⁣⁤"), None)
+HOMOGLYPHS = str.maketrans({
+    # Cyrillic
+    "а": "a", "е": "e", "о": "o", "р": "p", "с": "c", "х": "x", "у": "y",
+    "і": "i", "ј": "j", "һ": "h", "ѕ": "s", "А": "A", "В": "B", "Е": "E",
+    "К": "K", "М": "M", "Н": "H", "О": "O", "Р": "P", "С": "C", "Т": "T",
+    "Х": "X", "У": "Y",
+    # Greek
+    "ο": "o", "α": "a", "ε": "e", "ρ": "p", "ν": "v", "ι": "i", "Α": "A",
+    "Β": "B", "Ε": "E", "Ζ": "Z", "Η": "H", "Ι": "I", "Κ": "K", "Μ": "M",
+    "Ν": "N", "Ο": "O", "Ρ": "P", "Τ": "T", "Χ": "X", "Υ": "Y",
+})
+_LATIN_RE = re.compile(r"[A-Za-z]")
+_NONLATIN_LOOKALIKE_RE = re.compile("[" + "".join(chr(k) for k in HOMOGLYPHS) + "]")
+
+
+def sanitize(text):
+    """NFKC-normalise, drop zero-width characters, and map Cyrillic/Greek look-alikes to
+    Latin when they appear inside otherwise Latin words. Returns (clean_text, info)."""
+    import unicodedata
+    zero = sum(text.count(chr(c)) for c in ZERO_WIDTH)
+    t = text.translate(ZERO_WIDTH)
+    homo = 0
+    # In a mostly-English document (non-Latin letters under 10%) every look-alike is a
+    # substitution, even inside a word made only of look-alikes ("ace" -> "асе").
+    # In a Russian or Greek document they are real letters, so only mixed-script
+    # words (Latin + look-alike) are touched.
+    letters = [ch for ch in t if ch.isalpha()]
+    nonlatin = sum(1 for ch in letters if ord(ch) > 0x24F)
+    english_doc = bool(letters) and nonlatin / len(letters) < 0.10
+
+    def fix(m):
+        nonlocal homo
+        w = m.group(0)
+        if _NONLATIN_LOOKALIKE_RE.search(w) and (english_doc or _LATIN_RE.search(w)):
+            homo += len(_NONLATIN_LOOKALIKE_RE.findall(w))
+            return w.translate(HOMOGLYPHS)
+        return w
+
+    t = re.sub(r"\w+", fix, t)
+    t = unicodedata.normalize("NFKC", t)
+    return t, {"zero_width": zero, "homoglyphs": homo}
+
+
+MIN_WORDS_FOR_VERDICT = 100
+
+
 def analyze(text):
+    text, _ = sanitize(text)
     blocks = prose_blocks(text)
     prose = "\n\n".join(blocks)
     para_sents = [sentences(b) for b in blocks]
@@ -418,9 +539,11 @@ def analyze(text):
     words = WORD_RE.findall(prose)
     n_words = max(1, len(words))
     n_sents = max(1, len(sents))
-    # Densities use at least 400 words as the denominator so one incidental
-    # match in a short paragraph doesn't max out a signal.
-    per_k = 1000.0 / max(n_words, 400)
+    # Densities use at least 200 words as the denominator so one incidental match in a short
+    # passage doesn't max out a signal. (This was 400: any text under 400 words had its rates
+    # scaled down by words/400, so shorter texts looked less AI-like - and our human texts
+    # were shorter than the AI texts, a pure length shortcut.)
+    per_k = 1000.0 / max(n_words, 200)
 
     # rhythm
     lengths = [len(WORD_RE.findall(s)) for s in sents]
@@ -429,7 +552,11 @@ def analyze(text):
     pcv = statistics.pstdev(para_lengths) / max(1e-9, statistics.mean(para_lengths)) if len(para_lengths) >= 4 else 0.5
     real_paras = [ps for ps in para_sents if len(ps) >= 3]
     wrapups = sum(bool(WRAPUP_RE.search(ps[-1])) for ps in real_paras)
-    wrapup_share = wrapups / len(real_paras) if real_paras else 0.0
+    wrapup_share = wrapups / len(real_paras) if real_paras else 0.0   # layout-dependent: report only
+    # Layout-independent version used by the model: share of ALL sentences that read as a
+    # wrap-up/summary move ("Overall, ...", "This highlights ..."), wherever the paragraph
+    # breaks happen to fall in the source.
+    wrapup_rate = sum(bool(WRAPUP_RE.search(s)) for s in sents) / n_sents
 
     # vocabulary
     hits = stock_hits(prose)
@@ -462,7 +589,10 @@ def analyze(text):
     label_lines = len(LABEL_LINE_RE.findall(text))
     emojis = len(EMOJI_RE.findall(text))
     lw = [w.lower() for w in words]
-    grams = Counter(tuple(lw[i:i + 4]) for i in range(len(lw) - 3))
+    # fixed 250-word budget: the share of repeated 4-grams rises with length by construction,
+    # so measuring it over whatever length the text happens to have mixes length into the feature
+    lw250 = lw[:250]
+    grams = Counter(tuple(lw250[i:i + 4]) for i in range(len(lw250) - 3))
     repeated = sum(c for c in grams.values() if c >= 2)
     rep_ratio = repeated / max(1, sum(grams.values()))
 
@@ -481,6 +611,7 @@ def analyze(text):
         "sentence_length_cv": round(cv, 3),
         "paragraph_length_cv": round(pcv, 3),
         "wrapup_paragraph_share": round(wrapup_share, 3),
+        "wrapup_sentence_rate": round(wrapup_rate, 3),
         "stock_hits_per_1k": round(len(hits) * per_k, 2),
         "hedges_per_1k": round(len(hedges) * per_k, 2),
         "participial_tails_per_1k": round(len(participles) * per_k, 2),
@@ -511,6 +642,16 @@ def analyze(text):
         "proper_nouns_per_1k": round(len(PROPER_RE.findall(prose)) * true_k, 2),
         "bold_leads_per_1k": round(bold_labels * true_k, 2),
         "fiction_cliches_per_1k": round(len(find_all(FICTION_RES, prose)) * true_k, 2),
+        "fillers_per_1k": round(len(FILLER_RE.findall(prose)) * true_k, 2),
+        "dropped_apostrophes_per_1k": round((len(NO_APOSTROPHE_RE.findall(prose)) + len(LOWER_I_RE.findall(prose))) * true_k, 2),
+        "ellipses_per_1k": round((prose.count("...") + prose.count("…")) * true_k, 2),
+        "personal_hedges_per_1k": round(len(PERSONAL_HEDGE_RE.findall(prose)) * true_k, 2),
+        "second_person_per_1k": round(len(SECOND_PERSON_RE.findall(prose)) * true_k, 2),
+        "conj_start_ratio": round(sum(bool(re.match(r"[\"'(]?(and|but|so|or)\b", s, re.I)) for s in sents) / n_sents, 3),
+        # humanizers force short/long alternation: successive sentence lengths then
+        # move in opposite directions (negative lag-1 autocorrelation)
+        "length_alternation": round(-statistics.correlation(lengths[:-1], lengths[1:])
+                                    if len(lengths) >= 6 and len(set(lengths)) > 2 else 0.0, 3),
         "dialogue_ratio": round(sum(len(q) for q in re.findall(r"[\"“][^\"”\n]{2,400}[\"”]", prose))
                                 / max(1, len(prose)), 3),
     }
@@ -535,12 +676,18 @@ def analyze(text):
     weighted = sum(sig[name] * w for name, w, _ in SIGNALS)
     strongest = sorted(sig.values(), reverse=True)[:TOP_K]
     heuristic = round(100 * ((1 - TOP_K_BLEND) * weighted + TOP_K_BLEND * sum(strongest) / TOP_K))
+    tmpl = load_models().get("templates")
+    if tmpl:
+        import templates
+        raw["template_prob"] = round(templates.score(text, tmpl), 4)
     calibrated = model_score(raw)
     score = calibrated["score"] if calibrated else heuristic
     raw["tells_per_100w"] = round(tell_density(text, prose, sents), 2)
     if calibrated:
         score, p_tell = apply_tell_net(score, raw["tells_per_100w"])
         calibrated["tell_net"] = round(p_tell, 2)
+        calibrated["raw_probability"] = score
+        score = display(score, calibrated["model"])
     return {
         "score": score,
         "heuristic_score": heuristic,
@@ -561,11 +708,31 @@ def analyze(text):
     }
 
 
-def bands(kind="style"):
-    """(likely-AI threshold, likely-human threshold). Set in calibration so that
-    at most 5% of human texts reach 'likely AI'; defaults if no model is present."""
+SCORE_AI, SCORE_HUMAN = 60, 40  # displayed-score bands: >=60 likely AI, <40 likely human
+
+
+def display(prob, kind="style"):
+    """Map a model's calibrated probability (0-100) onto the displayed 0-100 score
+    so verdict thresholds always sit at the same place: the model's 'likely AI'
+    threshold (set so at most 5% of human texts reach it) shows as 60, and the
+    uncertain band below it shows as 40-60."""
     th = load_models().get(kind, {}).get("thresholds") if MODEL_PATH.exists() else None
-    return (th["ai"], th["human"]) if th else (60, 40)
+    if not th:
+        return prob
+    t_ai = max(1, th["ai"])
+    t_h = min(th["human"], t_ai * 0.6)  # keep an uncertain band even when the two thresholds coincide
+    if prob >= t_ai:
+        d = SCORE_AI + (100 - SCORE_AI) * (prob - t_ai) / max(1, 100 - t_ai)
+    elif prob >= t_h:
+        d = SCORE_HUMAN + (SCORE_AI - SCORE_HUMAN) * (prob - t_h) / max(1e-9, t_ai - t_h)
+    else:
+        d = SCORE_HUMAN * prob / max(1e-9, t_h)
+    return int(round(min(100, max(0, d))))
+
+
+def bands(kind="style"):
+    """(likely-AI, likely-human) thresholds on the displayed score."""
+    return SCORE_AI, SCORE_HUMAN
 
 
 def verdict(score, kind="style"):
@@ -651,6 +818,10 @@ def sentence_flags(sents, limit=12):
 
 def build(text, deep=False, max_mode=False):
     overall = analyze(text)
+    tmpl = load_models().get("templates")
+    if tmpl:
+        import templates
+        overall["top_templates"] = templates.top_templates(text, tmpl)
     if deep or max_mode:
         import perplexity
         if not perplexity.available():
@@ -671,9 +842,10 @@ def build(text, deep=False, max_mode=False):
                 if cal:
                     cal["score"], p_tell = apply_tell_net(cal["score"], overall["raw"]["tells_per_100w"])
                     cal["tell_net"] = round(p_tell, 2)
+                    cal["raw_probability"] = cal["score"]
                     overall["calibrated"] = cal
-                    overall["score"] = cal["score"]
-                    overall["verdict"] = verdict(cal["score"], cal["model"])
+                    overall["score"] = display(cal["score"], cal["model"])
+                    overall["verdict"] = verdict(overall["score"])
     secs = []
     for title, body in sections(text):
         a = analyze(body)
@@ -691,6 +863,13 @@ def build(text, deep=False, max_mode=False):
     if ai_secs and any(s["score"] < human_cut for s in solid):
         overall["mixed"] = {"ai_sections": [s["title"] for s in ai_secs], "of": len(solid)}
         overall["verdict"] = f"mixed - {len(ai_secs)} of {len(solid)} sections read as AI"
+    # Abstain on very short texts. Measured accuracy is ~68% at 100 words (88% at 300);
+    # Turnitin also refuses to score under 300 words. The score is still shown, but
+    # no verdict is attached: "likely AI/human" on 60 words would be a guess.
+    if overall["raw"]["words"] < MIN_WORDS_FOR_VERDICT:
+        overall["verdict"] = f"too short to judge ({overall['raw']['words']} words; need {MIN_WORDS_FOR_VERDICT}+)"
+        overall["abstained"] = True
+    overall["hidden_chars"] = sanitize(text)[1]
     overall["flagged_sentences"] = sentence_flags(overall.pop("_sentences"))
     return overall
 
@@ -698,6 +877,12 @@ def build(text, deep=False, max_mode=False):
 def render(result, source, before=None):
     r = result["raw"]
     lines = [f"# AI-likeness report: {Path(source).name}", ""]
+    hc = result.get("hidden_chars") or {}
+    if hc.get("zero_width") or hc.get("homoglyphs"):
+        lines += [f"**Hidden characters found and removed before scoring:** {hc['zero_width']} zero-width characters, "
+                  f"{hc['homoglyphs']} look-alike letters (Cyrillic/Greek in Latin words). Ordinary writers almost "
+                  "never produce these; they are a known way of trying to evade detectors, but can also come from "
+                  "copy-pasting out of some PDFs or web pages.", ""]
     if before:
         d = result["score"] - before["score"]
         lines.append(f"**Score:** {before['score']} -> **{result['score']}** ({d:+d})  |  "
@@ -754,6 +939,9 @@ def render(result, source, before=None):
     for name, _, desc in ranked:
         bv = f" (was {before['signals'].get(name, '-')})" if before else ""
         lines.append(f"| {desc} | {result['signals'][name]}{bv} | {measured[name]} |")
+    if result.get("top_templates"):
+        lines += ["", "**Learned AI-typical sentence templates found** (w = any content word): "
+                  + " | ".join(f"`{t}`" for t in result["top_templates"])]
     if result["top_stock_terms"]:
         lines += ["", "**Most frequent AI-typical terms:** "
                   + ", ".join(f"{t} ({n})" for t, n in result["top_stock_terms"])]

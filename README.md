@@ -19,51 +19,36 @@ A [Claude skill](https://docs.claude.com/en/docs/agents-and-tools/agent-skills/o
 
 ## How accurate is detection?
 
-The model was trained and cross-validated on **1,122 labelled texts**:
-- **603 human texts** written before LLMs were common: 1990s Usenet, arXiv abstracts from before 2021, Wikipedia, Project Gutenberg (19th-century books and 1900–1928 fiction and essays: Fitzgerald, Joyce, Woolf, Cather, Mansfield, Chesterton), 75 Paul Graham essays, StackExchange answers from 24 sites (before 2020), Wikinews, and Python PEPs.
-- **519 AI texts** from three Claude models plus ChatGPT-style writing, across forum posts, Q&A, essays, academic writing (with and without citations), encyclopedia articles, news, technical writing and **106 pieces of fiction**. Some were prompted to "sound human".
+Short version: on modern chat-LLM text (Claude-family and ChatGPT-style) in `--max` mode, about **8 in 10 AI texts are caught while at most 2 in 100 human texts are flagged**, even on kinds of writing the model has never seen. It is much weaker on output from older open models (GPT-2/OPT/LLaMA-1/BLOOM class) and on technical writing. Details below, with the caveats.
 
-5-fold cross-validation:
+**Training data (1,902 labelled texts, 12 genres):**
+- **968 human texts** from before LLMs were common: Usenet, pre-2021 arXiv, Wikipedia, Project Gutenberg books, Paul Graham essays, StackExchange, Wikinews, Python PEPs, IETF RFCs, Enron-era emails, US government (GAO/CRS) reports, Yelp reviews and Reddit posts.
+- **934 AI texts** from three Claude models and ChatGPT-style prompting across the same genres, including fiction and technical writing. About 100 are AI text rewritten by an assistant to "sound human" or "casual".
 
-| Model | AUC | Accuracy | AI caught | Humans wrongly flagged |
-|---|---|---|---|---|
-| Old hand-tuned rules (v1) | 0.51 on Claude-only data | — | 16% | — |
-| Style model (default) | 0.973 | 90.8% | 90.8% | 9.1% |
-| Style + GPT-2 (`--deep`) | 0.981 | 93.4% | 93.3% | 6.5% |
-| **Max: + neural detectors (`--max`)** | **0.990** | **95.5%** | **95.0%** | **4.1%** |
+**How it is tested.** The strict test is *leave-one-genre-out*: a whole genre (say, all technical writing, human and AI) is held back, the model trains on the other 11, and then scores the held-out genre. That is the situation when someone hands it a kind of document it has not seen. Thresholds are set from these held-out scores so that at most 2% of held-out human texts are called "likely AI".
 
-**Verdicts are tuned to avoid false accusations.** The "likely AI" cut-off is set from the data so that only 5% of human texts reach it. Borderline texts get "mixed / uncertain" instead.
+| Mode | AUC | AI caught at 1% human false positives | Verdict "likely AI": AI caught / human flagged |
+|---|---|---|---|
+| Style (default, no downloads) | 0.969 | 70% | 75% / 2% |
+| Deep (`--deep`, + GPT-2) | 0.968 | 73% | 79% / 2% |
+| **Max (`--max`, + neural detectors)** | **0.972** | **79%** | **82% / 2%** |
 
-| Verdict | Human texts | AI texts |
-|---|---|---|
-| Max mode: "likely AI" (score ≥ 47) | 5% | **95%** |
-| Deep mode: "likely AI" (score ≥ 57) | 5% | 91% |
-| Style mode: "likely AI" (score ≥ 66) | 5% | 86% |
-| Style mode: "likely human" (score < 52) | 91% | 9% |
+When genres *are* seen in training but the individual sources and authors are held out (the normal deployed situation), max mode gets AUC 0.998 and catches 98% of AI at 1% false positives. Treat that as an upper bound: the AI and human samples share topics and prompt styles.
 
-On genres the model never trained on (emails, cover letters, LinkedIn posts, blog posts, business reports), it catches 86% of AI text in max mode (76% in style or deep mode).
+**By genre, leave-one-genre-out, max mode** (AI caught / human wrongly flagged): academic 99% / 3%, essays 96% / 1%, reviews 100% / 6%, Q&A 94% / 1%, forum posts 95% / 0%, news 94% / 0%, encyclopedia 98% / 10%, emails 80% / 0%, business and government reports 88% / 5%, fiction 64% / 1%, **technical writing 35% / 0%**. AI-written cover letters, LinkedIn posts and thank-you notes (never trained on): 100% caught.
 
-**By genre (max mode):**
-- **AI fiction:** 94–100% caught, up from about 50% before the fiction data was added.
-- **Human fiction:** 2% wrongly flagged.
-- **Human essays:** 8% wrongly flagged (down from 16% in style mode).
-- **Human Q&A answers:** 4% wrongly flagged (down from 11%).
+**Human false positives are not zero.** Expect formal, polished human prose (encyclopedic, review, report writing) to be flagged at 5-10%. 40 passages from books the model never saw: 2% flagged.
 
-AI-polished human text lands anywhere, which is expected.
+**Weak spots, stated plainly:**
+- **Technical/protocol writing:** only about a third of AI text is caught when the model has never seen that genre (94-96% when it has).
+- **AI fiction** is caught about two thirds of the time on unseen genres, and "casual"/humanized AI about 70%.
+- **Older or raw base-model generators.** On a public benchmark of mostly older open models (COLING-2025 dev + RAID, 316 texts), max mode has AUC 0.92 but only 27% caught at the shipped threshold (1% human false positives); style and deep mode are near chance (AUC 0.57 / 0.69). Style cues are generator-specific: adding that data to training made the modern-LLM results *worse* (style AUC 0.96 -> 0.78), so it is deliberately not used for training.
+- **Short text:** under 100 words no verdict is given. Under about 200 words treat the number as a weak signal; length-versus-accuracy was measured on an earlier version of the model (about 88% at 300 words, 95% at 1,000+ words) and the direction still holds, but those figures were not re-measured for this release.
+- A detector cannot prove authorship. Report the score as an estimate.
 
-### How much text does it need? (no graphics card required)
+**Formatting does not move the score.** Merging paragraphs, hard-wrapping, curly vs straight quotes, double spaces, Windows line endings or pre-tokenised text changed scores by 0.6 points at most (0% verdict flips) on plain prose. Earlier versions moved up to 53 points on such edits, because they were reading layout rather than writing; those shortcuts were found by auditing each feature's single-feature predictive power within a genre and then removed.
 
-| Text length | Accuracy |
-|---|---|
-| 50 words | 61% (unreliable) |
-| 100 words | 68% (unreliable) |
-| 200 words | 80% |
-| **300 words (≈1 page)** | **88%** |
-| 1,000 words (≈3 pages) | **95%** |
-| 3,000 words (≈10 pages) | **95%**, 3% of human documents wrongly flagged |
-| 6,000 words (≈20 pages) | 100% on 14 test documents (small sample) |
-
-Long documents are measured by joining held-out texts of the same kind; the model never saw any of them. There's no upper limit on length: long documents are also scored section by section (about 250 words each), so a mixed document shows which parts read as AI.
+There is no upper limit on length: long documents are also scored section by section (about 250 words each), so a mixed document shows which parts read as AI.
 
 **Speed on an ordinary laptop CPU:**
 
@@ -78,7 +63,7 @@ Deep mode reads the text in a single GPT-2 pass. Beyond about 9,000 words it sco
 
 ### Humanizing benchmark
 
-24 AI texts across six genres were rewritten by agents following the skill:
+24 AI texts across six genres were rewritten by agents following the skill (measured with an earlier version of the scorer; not re-run for this release, so read the scores as indicative):
 
 | | Before | After |
 |---|---|---|
@@ -154,7 +139,7 @@ python ai-detect-humanize/scripts/style_profile.py my_old_essay.txt my_emails.tx
 ## How the scorer works
 
 1. **Clean the text.** Code, links, URLs, citations like *(Smith et al., 2019)*, bracketed statistics like *(n = 214)*, acronym definitions and LaTeX are removed first, so they can't be mistaken for writing style.
-2. **Measure 30 style features.** Sentence and paragraph rhythm, vocabulary variety, punctuation habits (parentheses, semicolons, em dashes, questions), specificity (numbers, names), first person, contractions, and the AI patterns from the catalog (stock phrases, participial tails, "not X but Y" frames, rule-of-three lists, bold lead-ins, chatbot leftovers, fake-casual tics).
+2. **Measure about 40 style features plus a learned sentence-template score** (part-of-speech skeleton n-grams, trained to separate AI from human structure). Sentence and paragraph rhythm, vocabulary variety, punctuation habits (parentheses, semicolons, em dashes, questions), specificity (numbers, names), first person, contractions, and the AI patterns from the catalog (stock phrases, participial tails, "not X but Y" frames, rule-of-three lists, bold lead-ins, chatbot leftovers, fake-casual tics).
 3. **Optionally add five GPT-2 features** (`--deep`): perplexity, top-1 and top-10 token rates, rare-word rate, and perplexity variation across sentences. `--max` also adds the AI probability from two pretrained neural classifiers (fakespot RoBERTa and desklib DeBERTa-v3) and the Binoculars score (SmolLM2-360M base vs instruct), averaged over up to six evenly spaced chunks. Binoculars is weak alone with CPU-sized models, but it lifts AI caught in unseen genres from 79% to 86%.
 4. **Score with gradient-boosted trees**, with the confidence calibrated (Platt scaling) so the score works as a probability. Known AI tells are constrained so they can only ever push the score toward AI. The trees are exported to `model.json` and run in plain Python, so scikit-learn isn't needed at runtime.
 5. **Apply a safety net for dense AI tells.** Short texts stuffed with classic phrases ("leveraging", "spearheaded", "Let's connect!") give the model too little to go on. A second score built only from known tells is therefore combined with the model's. It only switches on above 2.7 tells per 100 words, the highest density found in any of the 394 human texts, so it added no false positives on that corpus.

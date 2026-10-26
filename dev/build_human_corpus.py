@@ -42,9 +42,11 @@ def words(t):
     return len(t.split())
 
 
-def window(text, lo=180, hi=450):
-    """Cut a passage of lo..hi words ending on a sentence boundary."""
-    paras = [p.strip() for p in re.split(r"\n\s*\n", text) if words(p) > 20]
+def window(text, lo=180, hi=450, min_para=21):
+    """Cut a passage of lo..hi words ending on a sentence boundary. For fiction pass
+    min_para=3: dropping short paragraphs silently removes all dialogue, and the
+    model then learns 'dialogue = AI' (measured: 18% false positives on novels)."""
+    paras = [p.strip() for p in re.split(r"\n\s*\n", text) if words(p) >= min_para]
     out, n = [], 0
     for p in paras:
         out.append(p)
@@ -129,11 +131,12 @@ def gutenberg(n=50):
         raw = raw.replace("\r\n", "\n")
         body = raw.split("*** START", 1)[-1].split("*** END", 1)[0]
         body = re.sub(r"(?<!\n)\n(?!\n)", " ", body)  # unwrap hard line breaks
-        paras = [p for p in re.split(r"\n\s*\n", body) if words(p) > 40]
-        if len(paras) < 40:
+        # every paragraph of 3+ words, dialogue included (only chapter headings drop out)
+        paras = [p for p in re.split(r"\n\s*\n", body) if words(p) >= 3]
+        if len(paras) < 60:
             continue
-        for start in random.sample(range(10, len(paras) - 10), 3):
-            w = window("\n\n".join(paras[start:start + 8]), 200, 420)
+        for start in random.sample(range(20, len(paras) - 40), 3):
+            w = window("\n\n".join(paras[start:start + 40]), 200, 420, min_para=3)
             if w:
                 out.append({"text": w, "source": f"gutenberg:{name}", "genre": "literary"})
     random.shuffle(out)
@@ -284,11 +287,11 @@ def gutenberg_modern(n=80):
             continue
         body = raw.split("*** START", 1)[-1].split("*** END", 1)[0]
         body = re.sub(r"(?<!\n)\n(?!\n)", " ", body)
-        paras = [p for p in re.split(r"\n\s*\n", body) if words(p) > 30]
-        if len(paras) < 30:
+        paras = [p for p in re.split(r"\n\s*\n", body) if words(p) >= 3]  # keep dialogue
+        if len(paras) < 60:
             continue
-        for start in random.sample(range(5, len(paras) - 8), 5):
-            w = window("\n\n".join(paras[start:start + 8]), 200, 420)
+        for start in random.sample(range(20, len(paras) - 40), 5):
+            w = window("\n\n".join(paras[start:start + 40]), 200, 420, min_para=3)
             if w:
                 out.append({"text": w, "source": f"gutenberg_modern:{name}", "genre": genre})
     random.shuffle(out)

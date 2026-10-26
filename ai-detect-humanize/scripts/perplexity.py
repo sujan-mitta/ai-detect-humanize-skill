@@ -85,8 +85,15 @@ def token_scores(text, name="gpt2", max_tokens=MAX_TOKENS):
             target = x[0, 1:]
             true_lp = logp.gather(1, target.unsqueeze(1)).squeeze(1)
             rank = (logp > true_lp.unsqueeze(1)).sum(dim=1)
-            for j, (lp, rk) in enumerate(zip(true_lp.tolist(), rank.tolist())):
-                out.append((offsets[start + j + 1][0], lp, rk))
+            # Fast-DetectGPT (Bao et al., 2024) needs, per position, the mean and variance of
+            # log p(x') for x' drawn from the model itself: mean = sum p log p (negative
+            # entropy), variance = sum p (log p)^2 - mean^2. Free from the logits we have.
+            p = logp.exp()
+            mean_lp = (p * logp).sum(-1)
+            var_lp = ((p * logp * logp).sum(-1) - mean_lp ** 2).clamp(min=1e-9)
+            for j, (lp, rk, mu, var) in enumerate(zip(true_lp.tolist(), rank.tolist(),
+                                                      mean_lp.tolist(), var_lp.tolist())):
+                out.append((offsets[start + j + 1][0], lp, rk, mu, var))
     return out
 
 
@@ -111,20 +118,26 @@ def features(text, name="gpt2", max_tokens=MAX_TOKENS):
             pos = i + 1
     per_sent = [[] for _ in spans]
     si = 0
-    for off, lp, _ in scores:
+    for off, lp, *_ in scores:
         while si < len(spans) and off >= spans[si][1]:
             si += 1
         if si < len(spans) and spans[si][0] <= off < spans[si][1]:
             per_sent[si].append(lp)
     sent_ppl = [(spans[i][2], math.exp(-statistics.mean(lps))) for i, lps in enumerate(per_sent) if len(lps) >= 4]
-    lps = [lp for _, lp, _ in scores]
-    ranks = [rk for _, _, rk in scores]
+    lps = [s[1] for s in scores]
+    ranks = [s[2] for s in scores]
     n = len(ranks)
     ppl = math.exp(-statistics.mean(lps))
     vals = [p for _, p in sent_ppl]
+    # Fast-DetectGPT analytic criterion: (log-likelihood - expected) / std. Higher = machine.
+    total_mu = sum(s[3] for s in scores)
+    total_var = sum(s[4] for s in scores)
+    fastdetect = (sum(lps) - total_mu) / math.sqrt(total_var)
     return {
         "perplexity": round(ppl, 2),
         "log_perplexity": round(math.log(ppl), 4),
+        "fastdetect": round(fastdetect, 4),
+        "mean_entropy": round(-total_mu / n, 4),
         "top1_fraction": round(sum(r == 0 for r in ranks) / n, 4),
         "top10_fraction": round(sum(r < 10 for r in ranks) / n, 4),
         "rare_fraction": round(sum(r >= 1000 for r in ranks) / n, 4),

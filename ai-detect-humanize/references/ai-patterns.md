@@ -21,6 +21,8 @@ A single pattern proves nothing — humans use em dashes and say "crucial". What
 10. Genre-specific tells (essays, emails, creative writing, academic, marketing)
 11. Quick audit checklist
 12. What the calibration data showed (newer models write differently)
+13. How AI "humanizes" text, measured
+14. Which signals are strong and which are weak
 
 ---
 
@@ -240,3 +242,58 @@ The scorer was fitted on ~370 labelled texts: human writing from 1990s Usenet, p
 - **Hard cases:** polished human essays and expert Q&A answers get flagged as AI more often than other human genres (10–16% at the raw cut-off). AI fiction used to slip through about half the time; after training on 106 AI stories and modern human fiction, 92–100% is caught. AI fiction rarely uses the famous clichés ("barely above a whisper" appeared in only 4% of samples). What gives it away is predictability to GPT-2 and tidy structure: every scene resolves, emotions are named, and sentences are evenly paced.
 
 So when auditing, weigh rhythm, specificity and structure above vocabulary, and when humanizing, the highest-leverage changes are: vary sentence length, add the specifics the source already has (numbers, names, examples), allow the odd parenthesis or semicolon where it fits the register, break up triads, and drop bold lead-ins and paragraph wrap-ups.
+
+## 13. How AI "humanizes" text, measured
+
+76 AI texts were rewritten by three Claude models, under the requests people actually type: "make this undetectable by GPTZero/Turnitin", "humanize this, add natural imperfections", "paraphrase this", "rewrite it casually", "make it sound like a student wrote it". The skill's own careful rewrites were included for comparison. Each rewrite was compared with its original, and a technique counts when it moved its measure clearly. Share of rewrites using each technique:
+
+| Technique | All | "humanize" | "paraphrase" | "casual" | this skill |
+|---|---|---|---|---|---|
+| Plainer, shorter words | **61%** | 62% | 54% | 92% | 33% |
+| Adds contractions | **33%** | 62% | 15% | 62% | 17% |
+| Breaks up rule-of-three lists | **32%** | 38% | 31% | 31% | 25% |
+| Adds parentheses | **25%** | 0% | 0% | 23% | 54% |
+| Shorter sentences on average | **25%** | 0% | 0% | 46% | 42% |
+| Starts sentences with And / But / So | **24%** | 38% | 8% | 69% | 12% |
+| Adds casual fillers (basically, honestly, pretty much) | **24%** | 38% | 0% | 54% | 12% |
+| Forces short/long sentence alternation | **24%** | 0% | 23% | 23% | 33% |
+| More sentence-length variety | **22%** | 23% | 0% | 23% | 38% |
+| Removes Furthermore/Moreover openers | **18%** | 23% | 46% | 23% | 8% |
+| Talks to the reader ("you") | **16%** | 31% | 8% | 31% | 0% |
+| Adds personal hedges (I think, probably) | **11%** | 38% | 8% | 8% | 0% |
+| Adds rhetorical questions | **8%** | 8% | 0% | 23% | 4% |
+| Removes stock AI phrases | **8%** | 23% | 8% | 15% | 0% |
+| Fake typos, dropped apostrophes, ellipses, em-dash changes | **0–1%** | | | | |
+
+What this tells us about how AI rewrites:
+- **Humanizing is mostly a surface operation.** The most common moves are word-level: simpler words, contractions, breaking a list of three. The paragraph template, the even pacing, the generic claims and the wrap-up endings usually survive, which is why the rewrites stay detectable.
+- **"Casual" and "humanize" requests produce a recognisable second register**: And/But/So openers, fillers, contractions, "you", hedges like "I think". Together these form a fingerprint of their own (see §9). Real casual human writing has these features too, but rarely all at once in an otherwise tidy, well-organised text.
+- **"Paraphrase" changes the least.** It swaps words and drops transition openers, keeps everything else, and is the most detectable.
+- **AI rewriters almost never fake errors.** No typos, no dropped apostrophes, no lowercase "i", even when asked for "natural imperfections". They also leave punctuation habits like em dashes alone.
+- **Detection after humanizing.** Before the detector was trained on humanized text, it caught 21% (style) to 58% (max) of the skill's own rewrites. After training with author-grouped cross-validation, it catches most of them (see the README for current figures). Humanizing reliably lowers a score; it doesn't reliably make text read as human to a trained detector.
+
+For the rewriting side, the lesson is the same as in `humanizing-guide.md`: change structure, rhythm and specificity, not just vocabulary. Don't add the casual fingerprint (fillers + And/But openers + "you" + hedges) to a text whose register doesn't call for it.
+
+## 14. Which signals are strong and which are weak
+
+Each group of signals scored on its own (cross-validated AUC: 0.5 = useless, 1.0 = perfect), with the share of AI texts in which the group fires at all:
+
+| Signal group | AUC alone | Fires on |
+|---|---|---|
+| Stock vocabulary ("delve", "crucial", "tapestry") | 0.52 | 17% |
+| Fake-casual tics ("Honestly?", "Here's the thing") | 0.50 | 3% |
+| Formatting (bold lead-ins, chatbot leftovers) | 0.57 | 8% |
+| Paragraph template (wrap-ups, even paragraphs) | 0.71 | 54% |
+| Rhythm (sentence length and variety) | 0.70 | 85% |
+| Hand-written sentence templates | 0.73 | 39% |
+| Specificity and voice | 0.74 | 43% |
+| Vocabulary statistics | 0.76 | 75% |
+| GPT-2 predictability | 0.75 | 100% |
+| Punctuation habits | 0.82 | 34% |
+| Neural detectors | 0.87 | 100% |
+| **Learned sentence templates** (skeleton n-grams) | **0.97 across unseen genres** | 100% |
+
+How to use this when auditing by hand:
+- **Never conclude much from vocabulary alone.** The famous words are strong evidence when several cluster together, but most modern AI text has none of them.
+- **Formatting tells are decisive when present** (pasted chatbot answers, bold-label bullets) but absent from most documents.
+- **The strongest signals are distributional**: punctuation habits, rhythm, and above all *grammatical templates*. These are the habitual sentence shapes the learned template model picks up: list constructions, `w , and w`, `not just w but`, `by w-ing w , w can`, `this w w that`, and the steady clause-then-clause cadence. These survive word-level humanizing, which is why humanized text stays detectable.

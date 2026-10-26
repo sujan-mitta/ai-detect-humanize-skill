@@ -143,7 +143,13 @@ def _binoculars():
 
 
 def binoculars_score(text):
-    """log-perplexity (observer) / cross-perplexity (performer vs observer)."""
+    """Binoculars (Hans et al., 2024), following the reference implementation:
+    log-perplexity of the text under the PERFORMER (instruct) model, divided by the
+    cross-perplexity -sum softmax(OBSERVER) . log_softmax(PERFORMER). Low = machine.
+
+    (An earlier version here used the observer for the perplexity and the performer's
+    probabilities in the cross term - the mirror image - and scored AUROC 0.48 on our
+    corpus; this orientation scores 0.79. See dev/binoculars_check.py.)"""
     import torch
     tok, obs, perf = _binoculars()
     with torch.inference_mode():
@@ -153,9 +159,9 @@ def binoculars_score(text):
         lo = obs(ids).logits[0, :-1].float()
         lp = perf(ids).logits[0, :-1].float()
         target = ids[0, 1:]
-        log_po = torch.log_softmax(lo, -1)
-        ppl = -log_po.gather(1, target.unsqueeze(1)).mean()
-        x_ppl = -(torch.softmax(lp, -1) * log_po).sum(-1).mean()
+        log_pp = torch.log_softmax(lp, -1)
+        ppl = -log_pp.gather(1, target.unsqueeze(1)).mean()
+        x_ppl = -(torch.softmax(lo, -1) * log_pp).sum(-1).mean()
         return float(ppl / x_ppl)
 
 

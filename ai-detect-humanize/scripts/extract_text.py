@@ -86,6 +86,10 @@ def extract_docx(path):
         if not text:
             continue
         style = (para.style.name or "").lower() if para.style is not None else ""
+        if not style.startswith(("heading", "title")):
+            # keep bold runs as **markdown** so bold lead-ins ("**Flexibility:** ...") survive
+            rich = "".join(f"**{r.text}**" if r.bold and r.text.strip() else r.text for r in para.runs)
+            text = re.sub(r"\*\*\s*\*\*", "", rich).strip() or text
         m = re.match(r"heading (\d)", style)
         if m:
             parts.append("#" * int(m.group(1)) + " " + text)

@@ -17,3 +17,8 @@ dev/corpus/
 dev/runs/
 !ai-detect-humanize/scripts/*.json
 ai-detect-humanize-workspace/
+
+# raw research notes (the synthesized report in reports/ is committed)
+research_notes/
+dev/corpus/raw/
+dev/corpus/external/

@@ -5,6 +5,7 @@ What makes text read as AI-written, and how to rewrite it so it reads as a perso
 ## Contents
 1. The patterns that give AI text away
 2. Rewriting techniques
+2b. Why typical AI "humanizing" fails, and what to do instead
 3. Register-specific notes
 4. Before/after examples
 5. Final checklist
@@ -56,6 +57,16 @@ Use these in combination; one alone isn't enough.
 9. **Endings: stop when you're done.** Replace summary conclusions with a final point, implication, or next step.
 10. **Punctuation variety.** Trade most em dashes for commas, parentheses, colons, or full stops.
 11. **Allow a little texture.** An aside, a mild opinion, a sentence that starts with "And" or "But". A human-sounding text has small asymmetries.
+
+## 2b. Why typical AI "humanizing" fails, and what to do instead
+
+We measured 76 AI rewrites made under the usual requests ("humanize this", "paraphrase", "make it casual", "make it undetectable"). See `ai-patterns.md` §13. AI rewriters mostly do surface work: simpler words (61%), contractions (33%), breaking a list of three (32%), And/But/So openers and fillers like "basically" (24%). They keep the paragraph template, the even pacing, the generic claims and the grammatical sentence shapes, and a trained detector still recognises those. So:
+
+- **Change the skeleton, not just the words.** Sentence *shapes* are the strongest signal (learned-template AUC 0.97 across genres). If every sentence is still "clause, clause, and clause" or "By doing X, Y can Z", swapping vocabulary changes nothing. Recast some sentences entirely: lead with the object, merge two into one, split a long one at a different point, turn a statement into an example.
+- **Break the paragraph template.** Not every paragraph should open with a topic sentence and close with a takeaway. End some on a detail, open some mid-thought, let one run long.
+- **Add specificity from the source**, not invented colour. Generic claims are the deepest tell, and fillers don't fix them.
+- **Don't add the casual fingerprint by default.** Fillers, And/But openers, "you", and "I think" stacked into one tidy text is now a recognisable AI-humanizer pattern. Use that register only where the genre and the user's own voice call for it.
+- **Don't fake errors.** Deliberate typos and dropped apostrophes make the text worse. AI humanizers don't actually do this; the detector doesn't need it; and the user doesn't want a sloppy document.
 
 ## 3. Register-specific notes
 
