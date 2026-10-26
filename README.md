@@ -65,18 +65,17 @@ Deep mode reads the text in a single GPT-2 pass. Beyond about 9,000 words it sco
 
 ### Humanizing benchmark
 
-24 AI texts across six genres were rewritten by agents following the skill (measured with an earlier version of the scorer; not re-run for this release, so read the scores as indicative):
+Tested on 36 fresh AI texts (six genres) the detector had never seen, in `--max` mode:
 
-| | Before | After |
-|---|---|---|
-| Mean AI score (style) | 96 | 48 |
-| Mean AI score (GPT-2 deep) | 98 | 54 |
-| Reads as human | 0% | 50% (style) / 38% (deep) |
-| Facts check passed | — | 88% (the 3 failures each added a count that wasn't in the original) |
-| Length kept | — | 99% on average |
-| Fake-casual tics added | — | 0 |
+| Rewrite method | Mean score | Rewrites that leave "likely AI" (<60) | Rewrites that read as human (<40) |
+|---|---|---|---|
+| Before (original AI text) | 98 | 0 of 36 | 0 of 36 |
+| One pass of the usual edits (plainer words, contractions, varied openers) | 97 | 0 of 36 | 0 of 36 |
+| Up to five rounds of clause-structure edits, tracked against the score (6 texts, two models) | 70-78 | 4 of 12 | 0 of 12 |
 
-Encyclopedia-style and literary text humanize best. Product copy and formal Q&A stay AI-like more often, because their format itself reads as AI.
+So: the default quick rewrite does not change what a strong detector sees, and even the iterative workflow only moves some texts (emails, essays and news best; fiction, blogs and technical text least) out of the "likely AI" band. The workflow in `SKILL.md` now describes the iterative method and what worked (`references/humanizing-guide.md` §2c). The most reliable way to make a text read as human is to add the author's own details and opinions, which no rewrite of generic text can supply. Earlier figures in this section (for example "96 to 48") were measured with the fast style model that the rewriters were optimising against; they are not representative and have been removed.
+
+Fact preservation (`verify_rewrite.py`) passed on all of the iterative rewrites except for flagged number-word changes such as "a pair" becoming "two", which are for the writer to confirm. Length stayed within 94-113% of the originals.
 
 ### End-to-end tests (with vs. without the skill)
 

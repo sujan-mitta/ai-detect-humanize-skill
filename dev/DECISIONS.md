@@ -49,3 +49,8 @@ LOGO max: AUC 0.970->0.972; AI caught at 1% human FP 73%->79%, 0.5% 68%->74%; re
 Added human: 100 WikiText articles, 78 arXiv abstracts, 100 Yelp, 80 GAO, 100 WritingPrompts stories. Added AI (matched topics): 100 fiction, 100 encyclopedic, 78 academic, 100 reviews, 80 reports, plus 117 casual/natural rewrites of AI texts.
 LOGO max: AUC 0.975->0.978; AI caught at 1% FP 77->83%; verdict 84->86% at 2%; human FP encyclopedic 5->1%, academic 7->3%, review 6->3%; fiction 70->77%; technical 59->63%; cost: AI encyclopedic 98->80% (formal human data raised the bar), report FP 6->7%.
 Legacy head retrained: external 316 -> 75% caught at 1% human FP (RAID 83%/0%); own corpus 86->85% caught.
+
+## v5 (technical docs + 120 more GAO reports + 233 matched AI) - NOT adopted; v4 stays shipped
+LOGO: style tier improved (AUC .974->.976, AI caught at 1% FP 74->78%, technical 72->80%), but max tier fell: AI caught at 1% FP 83->80%, 0.5% 78->75%, verdict threshold rose 85->91 (harder formal negatives), so at the shipped threshold the benchmark recall fell 75->49% (human FP 1->0%; AUC actually rose .963->.973). Per-genre max recall fell for academic/email. Decision: gate failed on the recommended mode; model.json = v4. The v5 data stays in the corpus (dev/runs/model_v5.json keeps the model). Report FP stays 7% - more of the same GAO data does not move it; it looks like a real overlap between formal human prose and AI.
+Held-out end-to-end (36 fresh AI texts, never trained on): v4 max flagged 36/36 (detection recall 100%). Humanizing: one pass 98->97, 0/36 human; iterative structure edits 98->70/78, 4/12 out of the AI band.
+Scorer now prints a log-odds margin when the score saturates (>=90) so rewrite rounds can be tracked.

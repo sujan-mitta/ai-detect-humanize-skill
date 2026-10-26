@@ -68,6 +68,17 @@ We measured 76 AI rewrites made under the usual requests ("humanize this", "para
 - **Don't add the casual fingerprint by default.** Fillers, And/But openers, "you", and "I think" stacked into one tidy text is now a recognisable AI-humanizer pattern. Use that register only where the genre and the user's own voice call for it.
 - **Don't fake errors.** Deliberate typos and dropped apostrophes make the text worse. AI humanizers don't actually do this; the detector doesn't need it; and the user doesn't want a sloppy document.
 
+## 2c. What actually moved the score (measured)
+
+We tested the workflow end to end on 36 fresh AI texts (six genres) that no model had seen, scoring each rewrite in `--max` mode. A single pass of the usual edits (plainer words, contractions, varied openers, breaking triads) moved the mean score from 98 to 97 and **0 of 36 rewrites read as human**. A second experiment on six texts used five rounds of revision against the `--deep` score, which also reports the sentences and features driving it. Scored with `--deep` during the loop, the two best cases fell from 94-98 to 35-47, the middle ones to 52-60, and blog, news and story stayed at 72-90. Re-scored afterwards in the stricter `--max` mode, mean scores fell from 98 to 70 (Opus rewrites) and 78 (Sonnet rewrites); 4 of 12 rewrites left the "likely AI" band (below 60), and none reached "likely human" (below 40). Two things separate the cases that moved from the ones that did not:
+
+- **Reshape clause structure, not words.** The biggest drops came from removing the ", and" / ", so" / ", which" / ", since" joins that AI text strings together. Replace them with a full stop, a semicolon, a colon or parentheses; merge short choppy sentences into longer ones; drop the Oxford comma where the register allows. Adding contractions and extra short sentences did not help and sometimes raised the score.
+- **Iterate with a number that does not saturate.** The 0-100 score sits at 98-100 for most AI text, so a revision can improve the text and show no change. When the score is 90+, the report prints a "Model margin (log-odds of AI)"; track that between rounds instead. Stop after about five rounds or when sentences start to read worse.
+
+What resisted: fiction (its rhythm is the signal), and text that has to keep times, dates and lists ("6:45 a.m."); no amount of re-wording fixed those within five rounds. Say so plainly rather than promising a number. Merging sentences back with ", and" raised one text from 86 to 98, so check each round against the score, not by intuition.
+
+A caution that applies to every technique on this page: they change surface statistics. The text a person is proud of is the one with their own examples, opinions and specifics in it, and no rewrite of generic text can supply those. When the user can add two or three real details of their own, that beats any amount of restructuring.
+
 ## 3. Register-specific notes
 
 - **Academic / thesis:** Keep formal tone, citations, passive voice where conventional (methods sections). Focus on rhythm, removing stock phrases and empty transitions, and making claims precise. No contractions, no jokes.

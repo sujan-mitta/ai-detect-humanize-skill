@@ -244,10 +244,10 @@ def apply_legacy(res, leg, raw, deep):
     values = [raw.get(n, (deep or {}).get(n)) for n in leg["features"]]
     if any(v is None for v in values):
         return res
-    p = gb_score(leg, values, "legacy")["score"]
-    boosted = min(100, round(p * leg["scale"]))
+    lg = gb_score(leg, values, "legacy")
+    boosted = min(100, round(lg["score"] * leg["scale"]))
     if boosted > res["score"]:
-        res = dict(res, score=boosted, legacy=True)
+        res = dict(res, score=boosted, legacy=True, z=round(lg["z"] + math.log(leg["scale"]), 2))
     return res
 
 
@@ -343,6 +343,7 @@ def gb_score(m, values, kind):
     prob = 1 / (1 + math.exp(-max(-30, min(30, z))))
     return {
         "score": round(100 * prob),
+        "z": round(z, 2),
         "model": kind,
         "toward_ai": [(describe(n, above), round(t, 2)) for n, t, above in contrib if t > 0.1][:6],
         "toward_human": [(describe(n, above), round(t, 2)) for n, t, above in contrib if t < -0.1][:6],
@@ -911,6 +912,11 @@ def render(result, source, before=None):
                      f"{before['verdict']} -> **{result['verdict']}**")
     else:
         lines.append(f"**Score:** {result['score']}/100 - **{result['verdict']}**")
+    z = (result.get("calibrated") or {}).get("z")
+    if z is not None and z >= 2.0 and result["score"] >= 90:
+        lines.append(f"**Model margin (log-odds of AI):** {z:+.2f}. The 0-100 score flattens near the top, but this "
+                     "number keeps falling as edits help (about +2.2 is where the model's score starts to leave 90), "
+                     "so use it to see progress between rewrite rounds.")
     if result.get("mixed"):
         lines.append("**Mixed document:** these sections read as AI while others read as human: "
                      + "; ".join(result["mixed"]["ai_sections"]))
