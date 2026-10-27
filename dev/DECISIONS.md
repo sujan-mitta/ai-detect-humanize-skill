@@ -57,3 +57,9 @@ Scorer now prints a log-odds margin when the score saturates (>=90) so rewrite r
 
 ## Unseen-genre false-positive test (shipped v4 model, max mode)
 160 human texts from genres never in training: legal (CRS bill summaries) 60, statute text 40, medical textbooks 60. Flagged as likely AI: 0 of 160 (0%); read as human: 97-98%. Error analysis (dev/error_analysis.py) shows the leave-one-genre-out "report 7%" is a held-out-genre artefact driven by the sentence-template score; with the genre in training, report false positives are 0-1%. Conclusion: more of the same data is not the lever; breadth is, and breadth of human genres already looks good.
+
+## Frozen-split comparison (v4 data vs v4+v5 data), identical held-out groups, 5 random splits, max tier
+AUC 0.999 vs 0.999; AI caught at 1% human FP 97.6% vs 97.9% (paired diff +0.3 pts, sd 0.2); technical 95.6 vs 95.1; report 98.7 vs 98.3. The v5 data changes nothing when genres are seen; the earlier +-3 point LOGO movements were test-set composition and threshold noise. Shipped model stays v4 (smaller, no loss). Lesson: compare on a frozen test set; LOGO numbers are only comparable between runs that hold out the same rows.
+
+## Sentence-target tool for rewrites (scripts/rewrite_targets.py)
+Same six held-out texts, two models, --max scores. Iterating blind: mean 98->70 (Opus) / 78 (Sonnet), 4/12 under 60. Iterating with the target list: 60 / 72, 6/12 under 60, best case 41. Verifier: trailing punctuation inside quotes no longer counts as a changed quote; remaining flags are digits for spelled-out counts and changed quote boundaries, left for the writer to confirm.

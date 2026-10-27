@@ -127,7 +127,7 @@ python scripts/html_report.py "<original-name>_humanized.docx" --compare work/so
 
 Output format follows the input: `.pdf`/`.docx` → `.docx`; `.md` → `.md`; `.txt` → `.txt`; pasted text → reply in chat (and a file too if it's long). `build_output.py` accepts `--format docx|md|txt`.
 
-If any section still scores high (≳60), revise just those sections and rebuild, following "Using the score to revise" above and `references/humanizing-guide.md` §2c: measured on fresh texts, one pass of word-level edits changed almost nothing (0 of 36 rewrites read as human), while up to five rounds of clause-structure edits, tracked with the "Model margin" number the report prints when the score is saturated, lowered `--max` scores from about 98 to 70-78 on average (4 of 12 rewrites left the "likely AI" band, none became "likely human"). Fiction and news-style text often stay high; say so honestly. Stop earlier if the prose gets worse; a lower score from mangled prose is worse than a slightly higher score from good prose. For a long document, `--deep` on the final file is the more honest check, since the style score is the one you revised against.
+If any section still scores high (≳60), revise just those sections and rebuild, following "Using the score to revise" above and `references/humanizing-guide.md` §2c (run `python scripts/rewrite_targets.py <file> --deep` each round: it lists the sentences to change first, which in testing brought 6 of 12 rewrites under the "likely AI" line versus 4 of 12 when iterating without it): measured on fresh texts, one pass of word-level edits changed almost nothing (0 of 36 rewrites read as human), while up to five rounds of clause-structure edits, tracked with the "Model margin" number the report prints when the score is saturated, lowered `--max` scores from about 98 to 70-78 on average (4 of 12 rewrites left the "likely AI" band, none became "likely human"). Fiction and news-style text often stay high; say so honestly. Stop earlier if the prose gets worse; a lower score from mangled prose is worse than a slightly higher score from good prose. For a long document, `--deep` on the final file is the more honest check, since the style score is the one you revised against.
 
 ## Step 5 — Report back
 
@@ -151,6 +151,7 @@ Plus the before/after heatmap and report paths. Remind them in one line that det
 | `chunk_text.py FILE --out DIR --words N` | Split at paragraph boundaries into ~N-word chunks + manifest |
 | `ai_score.py FILE [--deep] [--report MD] [--json J] [--compare J] [--html H]` | Calibrated AI-likeness score with explanations, pattern signals, sections, flagged sentences |
 | `html_report.py FILE -o OUT [--deep] [--compare ORIGINAL]` | Sentence heatmap; side-by-side before/after with `--compare` |
+| `rewrite_targets.py FILE [--deep] [--top N]` | Ranks the sentences to change first (AI-typical shape, comma+conjunction joins, predictable sentences); prints score and model margin |
 | `perplexity.py FILE` | GPT-2 perplexity features on their own (used by `--deep`) |
 | `neural.py FILE` | Neural detector features on their own: fakespot, desklib, Binoculars (used by `--max`) |
 | `verify_rewrite.py ORIGINAL REWRITE` | Fact-preservation check; exit code 1 on missing/added facts |

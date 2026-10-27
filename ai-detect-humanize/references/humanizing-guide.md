@@ -77,6 +77,8 @@ We tested the workflow end to end on 36 fresh AI texts (six genres) that no mode
 
 What resisted: fiction (its rhythm is the signal), and text that has to keep times, dates and lists ("6:45 a.m."); no amount of re-wording fixed those within five rounds. Say so plainly rather than promising a number. Merging sentences back with ", and" raised one text from 86 to 98, so check each round against the score, not by intuition.
 
+**Target the sentences, not the whole text.** `python scripts/rewrite_targets.py FILE --deep` ranks the sentences to change first (AI-typical sentence shape, comma+conjunction joins, very predictable sentences) and prints the score and model margin. In a repeat of the experiment with this list (same six texts, two models, `--max` scores): mean 98 -> 60 (Opus) and 72 (Sonnet), against 70 and 78 without it; 6 of 12 rewrites left the "likely AI" band (4 of 12 before), one reached 41. Blog and story stayed highest; the list's flags on short fragments were the least reliable.
+
 A caution that applies to every technique on this page: they change surface statistics. The text a person is proud of is the one with their own examples, opinions and specifics in it, and no rewrite of generic text can supply those. When the user can add two or three real details of their own, that beats any amount of restructuring.
 
 ## 3. Register-specific notes

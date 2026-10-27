@@ -86,7 +86,7 @@ def facts(text):
         # pair quote marks in order (short quotes included) so the narration between two
         # lines of dialogue is never mistaken for a quote; then keep the substantial ones
         "quotes": [q for q in re.findall(r"\"([^\"\n]{1,400})\"|“([^”\n]{1,400})”", t)
-                   for q in [q[0] or q[1]] if len(q.split()) >= 3],
+                   for q in [(q[0] or q[1]).strip().rstrip(",.;:!?")] if len(q.split()) >= 3],
         "code": re.findall(r"`[^`\n]+`", t),
         "headings": [h.strip() for h in re.findall(r"^#{1,6}\s+(.+)$", t, re.M)],
     }
