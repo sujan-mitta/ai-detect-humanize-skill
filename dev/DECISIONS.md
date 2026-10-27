@@ -63,3 +63,8 @@ AUC 0.999 vs 0.999; AI caught at 1% human FP 97.6% vs 97.9% (paired diff +0.3 pt
 
 ## Sentence-target tool for rewrites (scripts/rewrite_targets.py)
 Same six held-out texts, two models, --max scores. Iterating blind: mean 98->70 (Opus) / 78 (Sonnet), 4/12 under 60. Iterating with the target list: 60 / 72, 6/12 under 60, best case 41. Verifier: trailing punctuation inside quotes no longer counts as a changed quote; remaining flags are digits for spelled-out counts and changed quote boundaries, left for the writer to confirm.
+
+## Family test and legacy head v2
+- family_eval.py on held-out COLING-train texts: GPT-4/4o 100, GPT-3.5 89->96, Mixtral 93, Cohere 86->79, Llama-3 68, Gemma 57->61; humans 0/90 at verdict.
+- Legacy head retrained with +180 rows (Llama-3, Gemma, human): external 74->78.5% caught at 1.3% flagged. Previous model: dev/runs/model_v4_pre_extra.json.
+- restructure.py (mechanical clause splitting): 98->96 in max mode; removed.

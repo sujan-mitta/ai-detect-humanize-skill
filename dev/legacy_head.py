@@ -34,6 +34,9 @@ FP_TARGET = 0.01
 
 def load_ext():
     sub = json.loads((ROOT / "runs" / "legacy_subset.json").read_text(encoding="utf-8"))
+    extra = ROOT / "runs" / "legacy_subset_extra.json"  # Llama-3 / Gemma rows (legacy_extra.py)
+    if extra.exists():
+        sub += json.loads(extra.read_text(encoding="utf-8"))
     cache = ee.load_cache()
     rows = []
     for r in sub:
