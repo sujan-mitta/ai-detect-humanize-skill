@@ -7,9 +7,9 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT.parent / "ai-detect-humanize" / "scripts"))
 import ai_score  # noqa: E402
 
-ap = argparse.ArgumentParser(); ap.add_argument("--mode", default="max"); a = ap.parse_args()
+ap = argparse.ArgumentParser(); ap.add_argument("--mode", default="max"); ap.add_argument("--dir", default="gemini"); a = ap.parse_args()
 by = collections.defaultdict(list)
-for f in sorted((ROOT / "corpus" / "gemini").glob("*/*.txt")):
+for f in sorted((ROOT / "corpus" / a.dir).glob("*/*.txt")):
     t = f.read_text(encoding="utf-8")
     if len(t.split()) < 100:
         print("skip (under 100 words):", f); continue

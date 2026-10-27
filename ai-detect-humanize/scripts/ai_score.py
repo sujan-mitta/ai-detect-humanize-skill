@@ -245,6 +245,8 @@ def apply_legacy(res, leg, raw, deep):
     if any(v is None for v in values):
         return res
     lg = gb_score(leg, values, "legacy")
+    if lg["score"] < leg.get("gate", 0):
+        return res
     boosted = min(100, round(lg["score"] * leg["scale"]))
     if boosted > res["score"]:
         res = dict(res, score=boosted, legacy=True, z=round(lg["z"] + math.log(leg["scale"]), 2))
@@ -270,7 +272,7 @@ def model_score(raw, deep=None, kind=None):
     values = [math.log1p(max(0.0, v)) if (n in logs and v is not None) else v for n, v in zip(m["features"], values)]
     if m.get("type") == "gb":
         res = gb_score(m, values, kind)
-        leg = models.get("legacy") if kind == "max" else None
+        leg = models.get("legacy") if kind == "max" else models.get("legacy_deep") if kind == "deep" else None
         if leg and res:
             res = apply_legacy(res, leg, raw, deep)
         return res

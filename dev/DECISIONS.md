@@ -71,3 +71,8 @@ Same six held-out texts, two models, --max scores. Iterating blind: mean 98->70 
 
 ## Gemini
 - 240 Gemini Pro/Flash texts (dev/corpus/gemini, gitignored?). Untrained model flagged 65-72%. Legacy head retrained with files 01-03 (144 rows): held-out 04-05 flagged 96%. Family test humans over 0.60: 4%->6%, 0/90 over verdict. Previous model: dev/runs/model_v4b_pre_gemini.json.
+
+## False-positive creep, deep legacy head
+- Human texts above the 60 line (external, 158): 7.0% (v4) -> 8.2% -> 10.8% after the Llama/Gemma and Gemini retrains. Cause: the legacy head's rescaled score lifted humans into the 60-85 band. Fix: legacy only adds when its own score >= 80 (gate in model.json): 5.1%, verdict-level results unchanged, Gemini held-out 96% -> 88% above 60, 78% at verdict. Correction: earlier '96% Gemini' was the 60 line, not the verdict.
+- legacy_deep (GPT-2 features only, gate 80): deep tier on older-model benchmark AI caught 19% -> 44%, held-out humans flagged 3.6% -> 4.8%.
+- Not addressed: short text (<100 words), technical/government prose data, humanizer ceiling. Round-2 Gemini prompt written (dev/ANTIGRAVITY_PROMPT2.md) for a fair held-out test.
