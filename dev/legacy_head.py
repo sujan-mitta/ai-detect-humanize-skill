@@ -30,6 +30,7 @@ import ai_score  # noqa: E402
 
 NAMES = c.DEEP_FEATURES + c.NEURAL_FEATURES
 FP_TARGET = 0.01
+HOLD_GEMINI = False
 
 
 def load_ext():
@@ -37,6 +38,9 @@ def load_ext():
     extra = ROOT / "runs" / "legacy_subset_extra.json"  # Llama-3 / Gemma rows (legacy_extra.py)
     if extra.exists():
         sub += json.loads(extra.read_text(encoding="utf-8"))
+    gem = ROOT / "runs" / "gemini_rows.json"  # Gemini texts, files 01-03 only (04-05 stay held out)
+    if gem.exists() and not HOLD_GEMINI:
+        sub += [r for r in json.loads(gem.read_text(encoding="utf-8")) if r["split"] == "train"]
     cache = ee.load_cache()
     rows = []
     for r in sub:

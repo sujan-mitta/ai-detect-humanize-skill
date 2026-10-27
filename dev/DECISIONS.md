@@ -68,3 +68,6 @@ Same six held-out texts, two models, --max scores. Iterating blind: mean 98->70 
 - family_eval.py on held-out COLING-train texts: GPT-4/4o 100, GPT-3.5 89->96, Mixtral 93, Cohere 86->79, Llama-3 68, Gemma 57->61; humans 0/90 at verdict.
 - Legacy head retrained with +180 rows (Llama-3, Gemma, human): external 74->78.5% caught at 1.3% flagged. Previous model: dev/runs/model_v4_pre_extra.json.
 - restructure.py (mechanical clause splitting): 98->96 in max mode; removed.
+
+## Gemini
+- 240 Gemini Pro/Flash texts (dev/corpus/gemini, gitignored?). Untrained model flagged 65-72%. Legacy head retrained with files 01-03 (144 rows): held-out 04-05 flagged 96%. Family test humans over 0.60: 4%->6%, 0/90 over verdict. Previous model: dev/runs/model_v4b_pre_gemini.json.
