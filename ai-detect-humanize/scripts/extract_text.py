@@ -108,12 +108,21 @@ def extract_docx(path):
 
 def extract(path):
     path = Path(path)
+    if not path.is_file():
+        sys.exit(f"file not found: {path}")
     suffix = path.suffix.lower()
     if suffix == ".pdf":
         return extract_pdf(path)
     if suffix == ".docx":
         return extract_docx(path)
-    return path.read_text(encoding="utf-8", errors="replace")
+    if suffix == ".doc":
+        sys.exit("old .doc files are not supported: save as .docx or .txt first")
+    raw = path.read_bytes()
+    try:
+        return raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        # Windows-1252 text (smart quotes, accents) is the usual non-UTF-8 case
+        return raw.decode("cp1252", errors="replace")
 
 
 def main():

@@ -82,3 +82,8 @@ Same six held-out texts, two models, --max scores. Iterating blind: mean 98->70 
 - Author details (AI-simulated authors): 98 -> 95 (0/12 under 60); details + structure method 98 -> 77 (3/12). No better than structure alone. The claim that author details are the reliable fix was wrong and removed. author_questions.py kept as a quality aid.
 - 120 new AI technical/report texts (sonnet7, haiku7). Frozen split: base test unchanged (AUC 0.998 both), report AI +3.4 pts, new-style report AI 68 -> 92 (optimistic, same sources), new technical already 100.
 - Full retrain (v7, 3717 texts): LOGO AUC 0.977 (same). But verdict threshold rose 85 -> 90, so at the verdict external AI caught 78 -> 66%, Gemini heldout 78 -> 71%, family results equal or lower; fresh humans over 60 went 1.2 -> 3.6%. NOT ADOPTED. Shipped model stays the previous one (dev/runs/model_v4c_pre_v7.json). v7 kept as dev/runs/model_v7_not_adopted.json. The new texts remain in dev/corpus/ai/{sonnet7,haiku7} for a future retrain.
+
+## Round 8: robustness pass
+- Edge-case run of the scorer (empty, blank, 1 word, BOM, Windows-1252, CRLF, emoji, no punctuation, missing file, .doc). Found and fixed: missing file printed a Traceback (now "file not found"); a UTF-8 BOM stayed in the text; Windows-1252 files were decoded with replacement characters (now cp1252 fallback); .doc gave no explanation (now says to save as .docx).
+- dev/smoke_test.py: 12 fast checks (style tier, no downloads). All pass.
+- No model change this round. Remaining accuracy gaps are unchanged and listed in the README (Llama-3/Gemma, technical prose, humanizer ceiling, Gemini round 2 needs the user to run ANTIGRAVITY_PROMPT2.md).
