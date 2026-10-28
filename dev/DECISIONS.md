@@ -95,3 +95,8 @@ Same six held-out texts, two models, --max scores. Iterating blind: mean 98->70 
 - calibrate.py: VERDICT_AI_CAP = 85. LOGO max at 85: AUC 0.977, 85% AI caught, 3% humans flagged (report 9%, academic 4%, others <=2%).
 - Adopted: model.json = v7 with threshold 85, gate 80. Previous: dev/runs/model_v4c_pre_v7.json.
 - Llama-3/Gemma: all 47 texts of each generator in the COLING train file are already cached and used; no more data of that kind is available here.
+
+## Round 9b: invariance and a rewrite-from-facts humanizer trial
+- Invariance on the adopted model (60 texts, 8 formatting edits): worst mean change 0.3 points, 0% verdict flips (runs/invariance_v8.txt).
+- Rewrite-from-facts method (write a fact list, set the original aside, write fresh under structure rules, then up to 3 target rounds), 12 fresh texts, max mode: mean 98 -> 80, 1 of 12 under 60 (essay 65/59, news 60/60 are borderline), blog 96, story 92, technical 88. Caveat: five of six agents were stopped before finishing their rounds because six parallel max-mode scorers starved the CPU, so this under-measures the method. Even so it is clearly behind iterating on the original with the target list (mean 60-72, 6 of 12 under 60), so the guide is unchanged.
+- Practical note: parallel agents each running --max slow everything to a crawl and trigger memory-allocation failures; run max-mode scoring one at a time.
