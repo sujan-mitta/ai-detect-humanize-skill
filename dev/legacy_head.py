@@ -98,6 +98,7 @@ def main():
     # --- final legacy model + external benchmark
     legacy = c.fit_gb(X, y, NAMES)
     legacy["threshold"] = round(t_leg * 100, 2)
+    legacy["gate"] = 80
     legacy["scale"] = round(scale, 4)
     texts = ee.load_texts()
     cache = ee.load_cache()

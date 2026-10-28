@@ -81,6 +81,8 @@ What resisted: fiction (its rhythm is the signal), and text that has to keep tim
 
 A caution that applies to every technique on this page: they change surface statistics. The text a person is proud of is the one with their own examples, opinions and specifics in it, and no rewrite of generic text can supply those. When the user can add two or three real details of their own, that beats any amount of restructuring.
 
+**Do personal details help? Measured: no, not for the score.** On 12 held-out drafts an AI playing the author answered `scripts/author_questions.py` questions with specific invented details and wove them in: mean `--max` score 98 -> 95, none under 60. Adding the target-guided structure method on top: 98 -> 77, 3 of 12 under 60, which is no better than the structure method alone (60-72). Real authors may do better than a simulated one (untested), and details still make a text more truly yours, so ask for them when quality matters, but spend the effort on sentence structure if the goal is the score.
+
 ## 3. Register-specific notes
 
 - **Academic / thesis:** Keep formal tone, citations, passive voice where conventional (methods sections). Focus on rhythm, removing stock phrases and empty transitions, and making claims precise. No contractions, no jokes.

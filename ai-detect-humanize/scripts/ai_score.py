@@ -888,12 +888,20 @@ def build(text, deep=False, max_mode=False):
     if ai_secs and any(s["score"] < human_cut for s in solid):
         overall["mixed"] = {"ai_sections": [s["title"] for s in ai_secs], "of": len(solid)}
         overall["verdict"] = f"mixed - {len(ai_secs)} of {len(solid)} sections read as AI"
-    # Abstain on very short texts. Measured accuracy is ~68% at 100 words (88% at 300);
-    # Turnitin also refuses to score under 300 words. The score is still shown, but
-    # no verdict is attached: "likely AI/human" on 60 words would be a guess.
-    if overall["raw"]["words"] < MIN_WORDS_FOR_VERDICT:
-        overall["verdict"] = f"too short to judge ({overall['raw']['words']} words; need {MIN_WORDS_FOR_VERDICT}+)"
-        overall["abstained"] = True
+    # Short texts. Measured (max mode, chunks of whole sentences): 60-99 words has AUC ~0.90-0.91, with
+    # 3-4% of human chunks above the 60 line and about half of AI chunks; 35-60 words is AUC 0.79 and only
+    # ~23% of AI chunks. Style mode is near AUC 0.7 at any length under 100. So: --max at 60-99 words
+    # gives a tentative flag only (a low score does not clear a text); everything else abstains.
+    n_w = overall["raw"]["words"]
+    if n_w < MIN_WORDS_FOR_VERDICT:
+        is_max = (overall.get("calibrated") or {}).get("model") == "max"
+        if is_max and n_w >= 60:
+            overall["tentative"] = True
+            overall["verdict"] = (f"short text ({n_w} words), tentative: reads as AI" if overall["score"] >= 60 else
+                                  f"short text ({n_w} words): no flag, but a low score does not clear it (about half of AI is missed at this length)")
+        else:
+            overall["verdict"] = f"too short to judge ({n_w} words; need 100+, or 60+ with --max)"
+            overall["abstained"] = True
     overall["hidden_chars"] = sanitize(text)[1]
     overall["flagged_sentences"] = sentence_flags(overall.pop("_sentences"))
     return overall

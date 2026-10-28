@@ -24,10 +24,13 @@ import calibrate2  # noqa: E402
 ap = argparse.ArgumentParser()
 ap.add_argument("--splits", type=int, default=5)
 ap.add_argument("--tier", default="max")
+ap.add_argument("--extra", default="v5", choices=["v5", "v7"])
 args = ap.parse_args()
 
 
 def is_extra(r):
+    if args.extra == "v7":
+        return r["id"].split("/")[0] in {"sonnet7", "haiku7"}
     return r["source"].startswith(("techdoc2:", "govreport4")) or r["source"] in {"ai:sonnet6", "ai:haiku6", "ai:opus6"} \
         or r["id"].split("/")[0] in {"sonnet6", "haiku6", "opus6"}
 
@@ -46,14 +49,14 @@ def main():
     base = [r for r in rows if not is_extra(r)]
     extra = [r for r in rows if is_extra(r)]
     print(f"{len(base)} base rows, {len(extra)} extra rows ({sum(r['label'] for r in extra)} AI)")
-    groups = sorted({r["group"] for r in base})
+    groups = sorted({r["group"] for r in base} | ({r["group"] for r in extra} if args.extra == "v7" else set()))
     res = {"A": [], "B": []}
     for s in range(args.splits):
         rng = np.random.RandomState(100 + s)
         test_g = set(rng.choice(groups, int(0.2 * len(groups)), replace=False))
-        test = [r for r in base if r["group"] in test_g]
+        test = [r for r in base + (extra if args.extra == "v7" else []) if r["group"] in test_g]
         trainA = [r for r in base if r["group"] not in test_g]
-        trainB = trainA + extra
+        trainB = trainA + [r for r in extra if r["group"] not in test_g]
         yt = np.array([r["label"] for r in test])
         out = {}
         for tag, train in (("A", trainA), ("B", trainB)):
@@ -68,13 +71,15 @@ def main():
             p = gb.decision_function(Xte)
             fp = {g: None for g in ()}
             res[tag].append({"auc": roc_auc_score(yt, p), "t1": tpr_at(p, yt, 0.01), "t5": tpr_at(p, yt, 0.05),
+                             "newtech": float(np.mean([pi > np.quantile(p[yt == 0], 0.99) for pi, r in zip(p, test) if r["label"] == 1 and r["id"].split("/")[0] in {"sonnet7", "haiku7"} and r["genre"] == "technical"] or [np.nan])),
+                             "newrep": float(np.mean([pi > np.quantile(p[yt == 0], 0.99) for pi, r in zip(p, test) if r["label"] == 1 and r["id"].split("/")[0] in {"sonnet7", "haiku7"} and r["genre"] == "report"] or [np.nan])),
                              "tech": float(np.mean([pi > np.quantile(p[yt == 0], 0.99) for pi, r in zip(p, test) if r["label"] == 1 and r["genre"] == "technical"] or [np.nan])),
                              "rep": float(np.mean([pi > np.quantile(p[yt == 0], 0.99) for pi, r in zip(p, test) if r["label"] == 1 and r["genre"] == "report"] or [np.nan]))})
         print(f"split {s}: test {len(test)} rows | A auc {res['A'][-1]['auc']:.3f} tpr@1% {res['A'][-1]['t1']:.2f} | "
               f"B auc {res['B'][-1]['auc']:.3f} tpr@1% {res['B'][-1]['t1']:.2f}", flush=True)
     print(f"\n{args.tier} tier, identical test rows, {args.splits} random group splits (mean +- sd)")
     for k, label in (("auc", "AUC"), ("t1", "AI caught at 1% human FP"), ("t5", "AI caught at 5% human FP"),
-                     ("tech", "technical AI caught at 1%"), ("rep", "report AI caught at 1%")):
+                     ("tech", "technical AI caught at 1%"), ("rep", "report AI caught at 1%"), ("newtech", "NEW technical AI caught at 1%"), ("newrep", "NEW report AI caught at 1%")):
         a, b = np.array([r[k] for r in res["A"]]), np.array([r[k] for r in res["B"]])
         print(f"  {label:32s} A (v4 data) {np.nanmean(a):.3f} +- {np.nanstd(a):.3f} | B (v5 data) {np.nanmean(b):.3f} +- {np.nanstd(b):.3f} | "
               f"B-A {np.nanmean(b - a):+.3f} (paired sd {np.nanstd(b - a):.3f})")
