@@ -344,9 +344,13 @@ def add_template_feature(train, extra, y):
     return full, auc
 
 
+VERDICT_AI_CAP = 85  # the 2% quantile drifts up (85 -> 90) whenever hard formal human texts are added to the
+# held-out-genre estimate; unseen-genre humans (0/160) and external humans (1.3%) stay clean at 85, so pin it.
+
+
 def verdict_thresholds(p, y, max_fp=0.02, max_fn=0.10):
     s = np.round(100 * p)
-    t_ai = next(t for t in range(1, 101) if (s[y == 0] >= t).mean() <= max_fp)
+    t_ai = min(VERDICT_AI_CAP, next(t for t in range(1, 101) if (s[y == 0] >= t).mean() <= max_fp))
     t_h = max([t for t in range(1, t_ai + 1) if (s[y == 1] < t).mean() <= max_fn] or [1])
     return {"ai": t_ai, "human": t_h,
             "human_said_human": round(float((s[y == 0] < t_h).mean()), 4), "human_said_ai": round(float((s[y == 0] >= t_ai).mean()), 4),

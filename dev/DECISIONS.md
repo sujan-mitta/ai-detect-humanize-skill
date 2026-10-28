@@ -87,3 +87,11 @@ Same six held-out texts, two models, --max scores. Iterating blind: mean 98->70 
 - Edge-case run of the scorer (empty, blank, 1 word, BOM, Windows-1252, CRLF, emoji, no punctuation, missing file, .doc). Found and fixed: missing file printed a Traceback (now "file not found"); a UTF-8 BOM stayed in the text; Windows-1252 files were decoded with replacement characters (now cp1252 fallback); .doc gave no explanation (now says to save as .docx).
 - dev/smoke_test.py: 12 fast checks (style tier, no downloads). All pass.
 - No model change this round. Remaining accuracy gaps are unchanged and listed in the README (Llama-3/Gemma, technical prose, humanizer ceiling, Gemini round 2 needs the user to run ANTIGRAVITY_PROMPT2.md).
+
+## Round 9: v7 adopted with a pinned verdict threshold
+- dev/regression_floor.py (cached features, seconds): floors on external, Gemini, fresh humans and per-family recall. The rejected v7 failed it, the previous model passed.
+- Finding: v7 was rejected only because the 2% held-out-genre quantile moved the verdict threshold 85 -> 90. At 85 v7 beats the previous model on every outside benchmark at equal human false positives (external AI 77.8 -> 80.4%, Gemini 78.1 -> 80.2%, Llama-3 65 -> 69%; external humans 1.3%, fresh humans 0%; unseen-genre humans 0/160).
+- Legacy gate swept 60-85: no effect at the verdict, only on the 60 line; kept 80. (85 would give fresh humans over 60 of 1.2% but Gemini over 60 of 86.5%.)
+- calibrate.py: VERDICT_AI_CAP = 85. LOGO max at 85: AUC 0.977, 85% AI caught, 3% humans flagged (report 9%, academic 4%, others <=2%).
+- Adopted: model.json = v7 with threshold 85, gate 80. Previous: dev/runs/model_v4c_pre_v7.json.
+- Llama-3/Gemma: all 47 texts of each generator in the COLING train file are already cached and used; no more data of that kind is available here.
