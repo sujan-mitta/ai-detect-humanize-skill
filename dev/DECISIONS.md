@@ -116,3 +116,8 @@ Same six held-out texts, two models, --max scores. Iterating blind: mean 98->70 
 - dev/corpus/ext2 (1,590 texts pulled by a subagent from Magpie, NYT-rewrite, OpenTuringBench, GovReport, BillSum, EUR-Lex, CNN/DailyMail; arxiv human dropped, tokenised artefact). 640 sampled and featurised (dev/ext2_features.py, dev/ext2_eval.py).
 - Shipped model, max mode: AI 95.9% at verdict (99.4% above 60), humans 1.0% (5.0% above 60). Weakest: deepseek-r1-distill 67%, claude_multiround 80%. Llama-3.1/Gemma 90-100% (vs 60-69% on COLING samples: dataset-dependent).
 - No retrain: nothing to fix at this level; the data stays as an unseen test set. No model change.
+
+## Round 13: ZeroGPT hand comparison (11 texts) and humanizer check
+- Set: dev/runs/compare_set.json (7 AI from ext2/gemini2, 4 human). ZeroGPT (free web checker, no login): AI 7/7 (98.5-100%), humans: 3 at 0%, 1 statute (billsum) at 97.8%. Ours (max, verdict 85): AI 5/7 (both Gemini casual/persona texts missed: 5 and 1), humans 0/4 at verdict (web-technical 62).
+- Humanizer (humanized_tool/opus outputs vs originals, ZeroGPT): essay 71.1 -> 58, blog 100 -> 93.2, news 78.2 -> 14.1. Helps, not reliable; no method change.
+- Tiny n; indicative only. Not a head-to-head on a benchmark.
