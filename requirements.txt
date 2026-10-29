@@ -1,0 +1,6 @@
+# default (style) tier: only these two
+pypdf
+python-docx
+# optional, for --deep and --max
+# torch
+# transformers
