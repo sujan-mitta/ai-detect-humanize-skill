@@ -31,6 +31,7 @@ import ai_score  # noqa: E402
 NAMES = c.DEEP_FEATURES + c.NEURAL_FEATURES
 FP_TARGET = 0.01
 HOLD_GEMINI = False
+GEM2 = ()  # round-2 Gemini conditions to train on, e.g. ("casual",) ; see --gem2
 
 
 def load_ext():
@@ -41,6 +42,9 @@ def load_ext():
     gem = ROOT / "runs" / "gemini_rows.json"  # Gemini texts, files 01-03 only (04-05 stay held out)
     if gem.exists() and not HOLD_GEMINI:
         sub += [r for r in json.loads(gem.read_text(encoding="utf-8")) if r["split"] == "train"]
+    g2 = ROOT / "runs" / "gemini2_rows.json"
+    if g2.exists() and GEM2:
+        sub += [r for r in json.loads(g2.read_text(encoding="utf-8")) if r["split"] in GEM2]
     cache = ee.load_cache()
     rows = []
     for r in sub:
@@ -56,7 +60,11 @@ def load_ext():
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--write", action="store_true")
+    ap.add_argument("--gem2", default="", help="comma list of round-2 Gemini conditions to train on: casual,persona")
+    ap.add_argument("--out", help="write the model (shipped model + this legacy head) to this path instead of model.json")
     args = ap.parse_args()
+    global GEM2
+    GEM2 = tuple(x for x in args.gem2.split(",") if x)
     ours = [r for r in c.extract_features(c.load_corpus(), True) if r["genre"] != "extra" and r.get("deep") and r.get("neural")]
     ext = load_ext()
     print(f"{len(ours)} own rows, {len(ext)} external rows ({sum(r['label'] for r in ext)} AI)", flush=True)
@@ -117,6 +125,11 @@ def main():
     print("\n## EXTERNAL benchmark (316 texts, COLING-dev + RAID), shipped modern threshold", th_cur)
     for name, p in (("modern max", pm), ("legacy head alone (rescaled)", np.minimum(1.0, pl * scale)), ("combined", pc)):
         print(f"  {name:30s} AUC {roc_auc_score(ye, p):.3f} | human flagged {np.mean(p[ye == 0] >= th_cur):.1%} | AI caught {np.mean(p[ye == 1] >= th_cur):.1%}")
+    if args.out:
+        m = json.loads(ai_score.MODEL_PATH.read_text(encoding="utf-8"))
+        m["legacy"] = legacy
+        Path(args.out).write_text(json.dumps(m, separators=(",", ":")), encoding="utf-8")
+        print("wrote candidate model", args.out)
     if args.write:
         path = ai_score.MODEL_PATH
         m = json.loads(path.read_text(encoding="utf-8"))
