@@ -106,3 +106,8 @@ Same six held-out texts, two models, --max scores. Iterating blind: mean 98->70 
 - Retrained the legacy head with these rows: casual-only, persona-only, both. Cross-condition (train one style, test the other): above 60 casual 75 -> 78-83%, persona 54 -> 67%; but verdict-level recall fell (casual 50 -> 38-39%, persona 26 -> 21-22%), external AI caught 80 -> 62-64%, gemini round-1 80 -> 74%, GPT-3.5 92 -> 85-88%, fresh humans over 60 up to 4.8%. Every candidate fails regression_floor.py. NOT ADOPTED; shipped model unchanged. Candidates: dev/runs/model_g2_{casual,persona,casual_persona}.json.
 - Conclusion: casually-prompted modern Gemini output is mostly indistinguishable on these signals; more training rows of this kind trade away other recall. README and SKILL.md now say so.
 - Scripts: dev/gemini2_features.py, dev/gemini2_eval.py, legacy_head.py --gem2/--out.
+
+## Round 11: false positives on real human reports (80 pre-2021 web texts), retrain not adopted
+- dev/corpus/human_web (40 report, 40 technical; manifest inside) scored with the shipped model, max mode: reports 10% at verdict / 20% above 60, technical 2.5% / 5%. A real weak spot beyond the 9% leave-one-genre-out estimate.
+- Candidate trained with the even-numbered half added as humans, tested on the odd half (n=20 per genre): report 10 -> 5%, technical 5 -> 0% at verdict, human external 0%; but external AI at verdict 80 -> 70%, Gemini round-1 80 -> 64%, GPT-3.5 92 -> 85%. Fails regression_floor.py. NOT ADOPTED (dev/runs/model_web_half.json). human.jsonl restored; shipped model unchanged.
+- dev/humanweb_eval.py scores any model on these texts (--held-odd for the odd half).
