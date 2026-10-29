@@ -111,3 +111,8 @@ Same six held-out texts, two models, --max scores. Iterating blind: mean 98->70 
 - dev/corpus/human_web (40 report, 40 technical; manifest inside) scored with the shipped model, max mode: reports 10% at verdict / 20% above 60, technical 2.5% / 5%. A real weak spot beyond the 9% leave-one-genre-out estimate.
 - Candidate trained with the even-numbered half added as humans, tested on the odd half (n=20 per genre): report 10 -> 5%, technical 5 -> 0% at verdict, human external 0%; but external AI at verdict 80 -> 70%, Gemini round-1 80 -> 64%, GPT-3.5 92 -> 85%. Fails regression_floor.py. NOT ADOPTED (dev/runs/model_web_half.json). human.jsonl restored; shipped model unchanged.
 - dev/humanweb_eval.py scores any model on these texts (--held-odd for the odd half).
+
+## Round 12: eighteen unseen generators from public datasets
+- dev/corpus/ext2 (1,590 texts pulled by a subagent from Magpie, NYT-rewrite, OpenTuringBench, GovReport, BillSum, EUR-Lex, CNN/DailyMail; arxiv human dropped, tokenised artefact). 640 sampled and featurised (dev/ext2_features.py, dev/ext2_eval.py).
+- Shipped model, max mode: AI 95.9% at verdict (99.4% above 60), humans 1.0% (5.0% above 60). Weakest: deepseek-r1-distill 67%, claude_multiround 80%. Llama-3.1/Gemma 90-100% (vs 60-69% on COLING samples: dataset-dependent).
+- No retrain: nothing to fix at this level; the data stays as an unseen test set. No model change.
