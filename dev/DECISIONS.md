@@ -131,3 +131,9 @@ Same six held-out texts, two models, --max scores. Iterating blind: mean 98->70 
 
 ## Round 15: can a genre-specific threshold fix report false positives?
 - Top max scores of real human texts: web reports 97, 87, 79, 60; ext2 govreport 82, 76, 75; billsum and eurlex all under 20. AI texts (ext2, 540) have a 5th-percentile score of 87. A human report at 97 scores like AI, so no threshold on that genre separates them; a raised report threshold would only trade recall for a few false positives. Not pursued.
+
+## Round 16: fresh API-generated texts (315) and a cross-model retrain, not adopted
+- Texts generated with the user's provider keys (read from the environment, never stored; revoke them): dev/gen_texts.py (10 general tasks x 4 prompt styles x models), dev/gen_sci.py (10 scientific tasks x 3 styles), dev/api_features.py, dev/api_eval.py. Gemini 2.5 Flash/Flash-latest/3.5 hit the free-tier quota partway, so counts per model differ; Gemini Pro and Gemma-4 were not available.
+- Shipped model, max mode: general 214 texts verdict 96.7% / 60-line 98.6%; scientific 101 texts 91.1% / 96.0%. By model: Gemini 3.x Flash 96-100%, GPT-OSS 93-100%, Qwen 97-100%, Nemotron 85% (general) and 55% (science). Casual/persona/'human' prompts 96-98% (plain science 82%).
+- Retrain test: legacy head trained on all models except Nemotron (api and sci rows), tested on Nemotron: 78% -> 76.5% at verdict; external benchmark AI at verdict 80.4 -> 69.6%, round-1 Gemini 80 -> 72.9%; fails regression_floor.py. NOT ADOPTED (dev/runs/model_api_a.json).
+- Conclusion: nothing left to fix at this level; the data becomes a new unseen test set. No model change.

@@ -31,6 +31,7 @@ import ai_score  # noqa: E402
 NAMES = c.DEEP_FEATURES + c.NEURAL_FEATURES
 FP_TARGET = 0.01
 HOLD_GEMINI = False
+API = ()   # API-generated generators to train on (runs/api_rows.json), see --api
 GEM2 = ()  # round-2 Gemini conditions to train on, e.g. ("casual",) ; see --gem2
 
 
@@ -45,6 +46,9 @@ def load_ext():
     g2 = ROOT / "runs" / "gemini2_rows.json"
     if g2.exists() and GEM2:
         sub += [r for r in json.loads(g2.read_text(encoding="utf-8")) if r["split"] in GEM2]
+    ap = ROOT / "runs" / "api_rows.json"
+    if ap.exists() and API:
+        sub += [r for r in json.loads(ap.read_text(encoding="utf-8")) if r["generator"] in API]
     cache = ee.load_cache()
     rows = []
     for r in sub:
@@ -61,9 +65,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--write", action="store_true")
     ap.add_argument("--gem2", default="", help="comma list of round-2 Gemini conditions to train on: casual,persona")
+    ap.add_argument("--api", default="", help="comma list of API-generated generators to train on (runs/api_rows.json)")
     ap.add_argument("--out", help="write the model (shipped model + this legacy head) to this path instead of model.json")
     args = ap.parse_args()
-    global GEM2
+    global GEM2, API
+    API = tuple(x for x in args.api.split(",") if x)
     GEM2 = tuple(x for x in args.gem2.split(",") if x)
     ours = [r for r in c.extract_features(c.load_corpus(), True) if r["genre"] != "extra" and r.get("deep") and r.get("neural")]
     ext = load_ext()
