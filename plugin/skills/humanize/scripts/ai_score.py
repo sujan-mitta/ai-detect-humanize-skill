@@ -232,9 +232,13 @@ def load_models():
         _MODELS = json.loads(MODEL_PATH.read_text(encoding="utf-8")) if MODEL_PATH.exists() else {}
         # The shipped model.json is a small manifest: large components are stored as "@relative/path.json" and
         # loaded from files next to it (every file stays under 1 MiB so it can be read and audited as plain text).
+        # A component with long lists is itself split into shards: {"__shards__": {"trees": ["model/deep.trees.0.json", ...]}, ...}
         for key, val in list(_MODELS.items()):
             if isinstance(val, str) and val.startswith("@"):
-                _MODELS[key] = json.loads((MODEL_PATH.parent / val[1:]).read_text(encoding="utf-8"))
+                comp = json.loads((MODEL_PATH.parent / val[1:]).read_text(encoding="utf-8"))
+                for field, files in (comp.pop("__shards__", None) or {}).items():
+                    comp[field] = [x for f in files for x in json.loads((MODEL_PATH.parent / f).read_text(encoding="utf-8"))]
+                _MODELS[key] = comp
     return _MODELS
 
 
