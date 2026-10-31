@@ -16,3 +16,10 @@ MIT licensed.
 ```
 
 One-step form on Claude Code 2.1.275 or later: `/plugin install humanize --marketplace sujan-mitta/ai-detect-humanize-skill`
+
+## Privacy and data
+
+- **Everything runs on your own computer.** The skill reads the text or files you give it (which may contain personal data such as names or emails) and writes its outputs, such as rewritten text, chunks and reports, only to your own working folder. It has no server and keeps no copy anywhere else.
+- **No user text is sent anywhere.** The only network access is the optional one-time download of open-source model files from Hugging Face when you first use `--deep` or `--max` mode; no text you write is part of that request.
+- **No credentials are read or required.** The skill does not use API keys, tokens or accounts.
+- **Not directed at children.** It is a general-purpose writing tool.
