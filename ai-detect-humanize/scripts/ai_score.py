@@ -268,7 +268,8 @@ def model_score(raw, deep=None, kind=None):
     if not m:
         return None
     logs = set(m.get("log_features", []))
-    values = [raw.get(name, (deep or {}).get(name)) for name in m["features"]]
+    values = [raw.get("template_prob_max") if (name == "template_prob" and kind == "max" and raw.get("template_prob_max") is not None)
+              else raw.get(name, (deep or {}).get(name)) for name in m["features"]]
     values = [math.log1p(max(0.0, v)) if (n in logs and v is not None) else v for n, v in zip(m["features"], values)]
     if m.get("type") == "gb":
         res = gb_score(m, values, kind)
@@ -705,6 +706,9 @@ def analyze(text):
     if tmpl:
         import templates
         raw["template_prob"] = round(templates.score(text, tmpl), 4)
+        tmax = load_models().get("templates_max")   # the max tier has its own template model (trained on more generators)
+        if tmax:
+            raw["template_prob_max"] = round(templates.score(text, tmax), 4)
     calibrated = model_score(raw)
     score = calibrated["score"] if calibrated else heuristic
     raw["tells_per_100w"] = round(tell_density(text, prose, sents), 2)
@@ -852,11 +856,12 @@ def build(text, deep=False, max_mode=False):
         if not perplexity.available():
             print("NOTE: --deep/--max need `pip install torch transformers`; using the style model.", file=sys.stderr)
         else:
-            feats = perplexity.features(text)
+            clean = sanitize(text)[0]   # hidden characters and look-alike letters must not reach the GPT-2 / neural extractors either
+            feats = perplexity.features(clean)
             kind = "deep"
             if feats and max_mode:
                 import neural
-                nf = neural.features(text)
+                nf = neural.features(clean)
                 if nf:
                     overall["neural"] = nf
                     feats = {**feats, **nf}
@@ -937,7 +942,7 @@ def render(result, source, before=None):
         models = load_models()
         cv = models.get("cv", {}).get(f"{cal['model']}_cv", {})
         how = {"deep": "style + GPT-2 perplexity", "max": "style + GPT-2 + neural AI-text detectors"}.get(cal["model"], "writing style")
-        lines.append(f"Model: calibrated on {models.get('trained_on', {}).get('n_train', '?')} labelled texts using {how}"
+        lines.append(f"Model: calibrated on {cv.get('n') or models.get('trained_on', {}).get('n_train', '?')} labelled texts using {how}"
                      + (f" (cross-validated accuracy {cv['accuracy']:.0%}, AUC {cv['auc']:.2f})" if cv else ""))
         if result.get("deep"):
             d = result["deep"]

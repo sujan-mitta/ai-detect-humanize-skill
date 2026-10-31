@@ -165,6 +165,26 @@ def binoculars_score(text):
         return float(ppl / x_ppl)
 
 
+def probe_prob(text):
+    """Linear probe on the fakespot RoBERTa's mean-pooled last-layer embedding, trained on a diverse labelled corpus
+    (weights in model.json under "probe"; dev/calibrate2.py --probe). None when the model has no probe."""
+    import math
+    import torch
+    from ai_score import load_models, prose_blocks
+    w = load_models().get("probe")
+    if not w:
+        return None
+    tok, model, _ = _fakespot()
+    # the same canonical prose the probe was trained on (dev/embed_rows.py): no headings/tables/code, hard wraps joined,
+    # look-alike letters, zero-width characters and typography normalised
+    text = " ".join(prose_blocks(text)) or text
+    with torch.inference_mode():
+        enc = tok(text, truncation=True, max_length=512, return_tensors="pt")
+        h = model.roberta(**enc).last_hidden_state[0].float().mean(0).tolist()
+    z = w["intercept"] + sum(c * (x - m) / (s or 1) for x, m, s, c in zip(h, w["mean"], w["scale"], w["coef"]))
+    return 1 / (1 + math.exp(-max(-30, min(30, z))))
+
+
 def features(text, which=("fakespot", "desklib", "binoculars")):
     """Average of each detector over evenly spaced chunks of the prose."""
     from ai_score import prose_blocks
@@ -181,6 +201,10 @@ def features(text, which=("fakespot", "desklib", "binoculars")):
             if len(vals) > 1:
                 out[f"{name}_max"] = round(max(vals) if name != "binoculars" else min(vals), 5)
     out["chunks_scored"] = len(parts)
+    # the probe was trained on the first 512 tokens of each whole text, so it is applied the same way (not chunk-averaged)
+    pr = probe_prob(text)
+    if pr is not None:
+        out["probe"] = round(pr, 5)
     return out
 
 

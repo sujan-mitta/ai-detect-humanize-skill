@@ -3,7 +3,8 @@
 
 Uses cached features (runs/external_features.jsonl, runs/gemini_rows.json), so it runs in seconds.
 Usage: python dev/regression_floor.py [MODEL.json]     (default: the shipped model.json)
-Floors are the shipped v8 values (2026-10-29) with a small tolerance for noise."""
+Floors are the shipped v9 (normalised-text probe) values (2026-11-02) with a small tolerance for noise. Models with a "probe" feature get it
+from the cached fakespot embeddings (dev/embed_rows.py), exactly as the live scorer computes it."""
 import json
 import sys
 from pathlib import Path
@@ -23,12 +24,12 @@ FAM = {"gpt4": ("gpt4o", "gpt4"), "gpt3.5": ("gpt-3.5-turbo", "gpt-35"), "llama3
 
 # (metric, floor, direction): "min" = must be >= floor, "max" = must be <= ceiling
 FLOORS = {
-    "ext_ai_verdict": (0.78, "min"), "ext_ai_60": (0.84, "min"),
-    "ext_human_verdict": (0.025, "max"), "ext_human_60": (0.075, "max"),
-    "gemini_verdict": (0.78, "min"), "gemini_60": (0.89, "min"),
+    "ext_ai_verdict": (0.82, "min"), "ext_ai_60": (0.88, "min"),
+    "ext_human_verdict": (0.035, "max"), "ext_human_60": (0.07, "max"),
+    "gemini_verdict": (0.90, "min"), "gemini_60": (0.95, "min"),
     "fresh_human_60": (0.045, "max"), "fresh_human_verdict": (0.01, "max"),
     "llama3_verdict": (0.66, "min"), "gemma_verdict": (0.57, "min"),
-    "gpt4_verdict": (0.80, "min"), "gpt3.5_verdict": (0.89, "min"),
+    "gpt4_verdict": (0.90, "min"), "gpt3.5_verdict": (0.92, "min"),
 }
 
 
@@ -50,8 +51,28 @@ def load_data():
     return cache, ext, gem, fam, hum
 
 
+def _enable_probe(model_path):
+    """Inject the probe feature (from cached embeddings) into the cached neural records when the model uses one."""
+    import math
+    w = json.load(open(model_path, encoding="utf-8")).get("probe")
+    if not w or getattr(ee.score, "_probe", False):
+        return
+    emb = dict(np.load(HERE / "runs" / "emb_fakespot.npz"))
+    mean, scale, coef = np.array(w["mean"]), np.array(w["scale"]), np.array(w["coef"])
+    orig = ee.score
+
+    def with_probe(text, rec, mode):
+        if mode == "max" and rec.get("neural") is not None and ee.key(text) in emb:
+            z = w["intercept"] + float(np.sum(coef * (emb[ee.key(text)].astype(np.float64) - mean) / scale))
+            rec = {**rec, "neural": {**rec["neural"], "probe": 1 / (1 + math.exp(-max(-30, min(30, z))))}}
+        return orig(text, rec, mode)
+    with_probe._probe = True
+    ee.score = with_probe
+
+
 def metrics(model_path=SHIPPED, data=None):
     cache, ext, gem, fam, hum = data or load_data()
+    _enable_probe(model_path)
     ai_score.MODEL_PATH = Path(model_path)
     ai_score._MODELS = None
     thr = ai_score.load_models()["max"]["thresholds"]["ai"] / 100

@@ -62,6 +62,36 @@ def attach_modern_features(rows):
                 r["deep"], r["neural"] = rec["deep"], rec["neural"]
 
 
+PROBE = None   # full-fit probe parameters when --probe is used
+
+
+def attach_probe(rows):
+    """Linear probe on fakespot RoBERTa embeddings (dev/embed_rows.py): out-of-fold (leave-one-genre-out) probability
+    becomes a 'probe' neural feature of every row that has neural features; the full-fit probe is saved in model.json."""
+    global PROBE
+    import external_eval as ee, regression_floor as rf
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.preprocessing import StandardScaler
+    emb = dict(np.load(ROOT / "runs" / "emb_fakespot.npz"))
+    _, _, _, fam, hum = rf.load_data()
+    floor = {ee.key(r["text"]) for v in fam.values() for r in v} | {ee.key(r["text"]) for r in hum}
+    fit = [r for r in rows if ee.key(r["text"]) in emb and ee.key(r["text"]) not in floor and r["genre"] != "extra"]
+    X = np.stack([emb[ee.key(r["text"])].astype(np.float32) for r in fit]); y = np.array([r["label"] for r in fit])
+    G = np.array([r["genre"] for r in fit])
+    sc = StandardScaler().fit(X); Xs = sc.transform(X)
+    oof = np.zeros(len(y))
+    for g in sorted(set(G)):
+        te = G == g
+        oof[te] = LogisticRegression(C=0.05, max_iter=400, class_weight="balanced").fit(Xs[~te], y[~te]).predict_proba(Xs[te])[:, 1]
+    full = LogisticRegression(C=0.05, max_iter=400, class_weight="balanced").fit(Xs, y)
+    PROBE = {"mean": [round(float(v), 5) for v in sc.mean_], "scale": [round(float(v), 5) for v in sc.scale_],
+             "coef": [round(float(v), 6) for v in full.coef_[0]], "intercept": round(float(full.intercept_[0]), 6)}
+    for r, pr in zip(fit, oof):
+        if r.get("neural"):
+            r["neural"] = {**r["neural"], "probe": float(pr)}
+    print(f"probe: {len(fit)} rows, leave-one-genre-out AUC {roc_auc_score(y, oof):.3f}", flush=True)
+
+
 def load_rows(external, modern=False):
     rows = c.load_corpus()
     if modern:
@@ -166,6 +196,7 @@ def main():
     global PROTOCOL
     ap = argparse.ArgumentParser()
     ap.add_argument("--external", action="store_true")
+    ap.add_argument("--probe", action="store_true", help="add the fakespot-embedding probe as a neural feature (needs dev/embed_rows.py output)")
     ap.add_argument("--modern", action="store_true", help="also train on dev/corpus/ext2 (modern generators + real formal human text)")
     ap.add_argument("--write", action="store_true")
     ap.add_argument("--skip-max", action="store_true")
@@ -181,6 +212,9 @@ def main():
     rows = c.extract_features(load_rows(args.external, args.modern), not args.style_only)
     if args.modern:
         attach_modern_features(rows)
+    if args.probe:
+        c.NEURAL_FEATURES.append("probe")
+        attach_probe(rows)
     train = [r for r in rows if r["genre"] != "extra"]
     extra = [r for r in rows if r["genre"] == "extra"]
     c.GROUPS = np.array([r["group"] for r in train])
@@ -226,6 +260,8 @@ def main():
     (ROOT / "runs" / f"{args.tag}.json").write_text(json.dumps(results, indent=2), encoding="utf-8")
     if args.write:
         models["templates"] = template_model
+        if PROBE:
+            models["probe"] = PROBE
         models["trained_on"] = {k: results[k] for k in ("n_train", "n_ai", "n_human")}
         models["cv"] = {k: v for k, v in results.items() if k.endswith("_cv")}
         out = SCRIPTS / "model.json"
