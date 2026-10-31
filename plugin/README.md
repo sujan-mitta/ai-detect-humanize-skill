@@ -17,6 +17,12 @@ MIT licensed. [Privacy](https://github.com/sujan-mitta/ai-detect-humanize-skill/
 
 One-step form on Claude Code 2.1.275 or later: `/plugin install humanize --marketplace sujan-mitta/ai-detect-humanize-skill`
 
+## What the skill runs
+
+- When you ask Claude to score or rewrite a text, the skill has Claude run the Python scripts bundled in `skills/humanize/scripts/` (for example `ai_score.py`, `chunk_text.py`, `verify_rewrite.py`) on your own computer. All source is readable text in this repository; nothing is minified, downloaded as code or run from a remote server.
+- The plugin declares no MCP servers, hooks or commands.
+- `--deep` and `--max` modes additionally load open-source model weights (GPT-2, RoBERTa, DeBERTa, SmolLM2) through the `transformers` library; the weights are downloaded once from Hugging Face and run locally.
+
 ## Privacy and data
 
 - **Everything runs on your own computer.** The skill reads the text or files you give it (which may contain personal data such as names or emails) and writes its outputs, such as rewritten text, chunks and reports, only to your own working folder. It has no server and keeps no copy anywhere else.
