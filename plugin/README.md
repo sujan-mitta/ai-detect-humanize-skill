@@ -6,7 +6,7 @@ A Claude skill that estimates how AI-generated a text reads, shows which sentenc
 - Optional `--deep` and `--max` modes use local models (`torch`, `transformers`); `--max` downloads about 3.7 GB of open models from Hugging Face once.
 - Detector scores are estimates, not proof of authorship. Accuracy numbers and limits are in the repository README: https://github.com/sujan-mitta/ai-detect-humanize-skill
 
-MIT licensed.
+MIT licensed. [Privacy](https://github.com/sujan-mitta/ai-detect-humanize-skill/blob/main/plugin/README.md#privacy-and-data) | [Source and issues](https://github.com/sujan-mitta/ai-detect-humanize-skill)
 
 ## Install (Claude Code)
 

@@ -15,5 +15,6 @@
     "skill"
   ],
   "icon": "./.claude-plugin/icon.png",
-  "displayName": "AI Detect & Humanize"
+  "displayName": "AI Detect & Humanize",
+  "privacyPolicyUrl": "https://github.com/sujan-mitta/ai-detect-humanize-skill/blob/main/plugin/README.md#privacy-and-data"
 }
