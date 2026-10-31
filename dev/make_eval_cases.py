@@ -7,7 +7,7 @@ Input files for each case are created separately (see dev/make_eval_inputs.py).
 import textwrap
 from pathlib import Path
 
-EVALS = Path(__file__).resolve().parent.parent / "plugin" / "skills" / "humanize" / "evals"
+EVALS = Path(__file__).resolve().parent.parent / "evals"
 
 SETTINGS = """---
 tags: [humanize]

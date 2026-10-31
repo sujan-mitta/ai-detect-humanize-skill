@@ -112,7 +112,7 @@ Fact preservation (`verify_rewrite.py`) passed on all of the iterative rewrites 
 
 ### End-to-end tests (with vs. without the skill)
 
-The 11 realistic requests in [`plugin/skills/humanize/evals/`](plugin/skills/humanize/evals) were each run twice by Claude Sonnet, once with the skill and once without, then graded against 64 checks:
+The 11 realistic requests in [`evals/`](evals) were each run twice by Claude Sonnet, once with the skill and once without, then graded against 64 checks:
 
 | | With skill | Without skill |
 |---|---|---|
