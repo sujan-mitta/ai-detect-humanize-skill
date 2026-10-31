@@ -1,6 +1,6 @@
 import json,sys,random,collections
 import numpy as np
-sys.path.insert(0,'.'); sys.path.insert(0,'../ai-detect-humanize/scripts')
+sys.path.insert(0,'.'); sys.path.insert(0,'../humanize/scripts')
 import external_eval as ee, ai_score
 cache=ee.load_cache()
 ext=ee.load_texts()

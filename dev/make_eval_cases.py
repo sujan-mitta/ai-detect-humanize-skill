@@ -7,10 +7,10 @@ Input files for each case are created separately (see dev/make_eval_inputs.py).
 import textwrap
 from pathlib import Path
 
-EVALS = Path(__file__).resolve().parent.parent / "ai-detect-humanize" / "evals"
+EVALS = Path(__file__).resolve().parent.parent / "humanize" / "evals"
 
 SETTINGS = """---
-tags: [ai-detect-humanize]
+tags: [humanize]
 max_turns: 40
 timeout_seconds: 1200
 allowed_tools: [Read, Glob, Grep, Skill, Write, Edit, Bash]

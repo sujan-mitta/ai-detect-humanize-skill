@@ -17,7 +17,7 @@ from sklearn.metrics import roc_auc_score
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
-sys.path.insert(0, str(ROOT.parent / "ai-detect-humanize" / "scripts"))
+sys.path.insert(0, str(ROOT.parent / "humanize" / "scripts"))
 import calibrate as c  # noqa: E402
 import templates  # noqa: E402
 

@@ -1,7 +1,7 @@
 import json,sys,random
 from pathlib import Path
 import numpy as np
-sys.path.insert(0,'.'); sys.path.insert(0,'../ai-detect-humanize/scripts')
+sys.path.insert(0,'.'); sys.path.insert(0,'../humanize/scripts')
 import external_eval as ee, ai_score, legacy_features as lf
 cache=ee.load_cache(); ext=ee.load_texts()
 gem=[r for r in json.load(open('runs/gemini_rows.json',encoding='utf-8')) if r['split']=='test']
@@ -11,7 +11,7 @@ fam={'gpt4':('gpt4o','gpt4'),'gpt3.5':('gpt-3.5-turbo','gpt-35'),'llama3':('llam
 fa={k:[r for r in rows if r['label']==1 and r['generator'] in g and ee.key(r['text']) in cache and 'neural' in cache[ee.key(r['text'])] and ee.key(r['text']) not in used] for k,g in fam.items()}
 hu=[r for r in rows if r['label']==0 and ee.key(r['text']) in cache and 'neural' in cache[ee.key(r['text'])] and ee.key(r['text']) not in used]
 def sc(rs): return np.array([ee.score(t['text'],cache[ee.key(t['text'])],'max') or 0 for t in rs])
-for name,path in (('before (v4c)','runs/model_v4c_pre_v7.json'),('after (v7)','../ai-detect-humanize/scripts/model.json')):
+for name,path in (('before (v4c)','runs/model_v4c_pre_v7.json'),('after (v7)','../humanize/scripts/model.json')):
     ai_score.MODEL_PATH=Path(path); ai_score._MODELS=None
     thr=ai_score.load_models()['max']['thresholds']['ai']/100
     print(f'== {name}: verdict threshold {thr:.2f}')

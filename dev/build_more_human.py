@@ -19,7 +19,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
-sys.path.insert(0, str(ROOT.parent / "ai-detect-humanize" / "scripts"))
+sys.path.insert(0, str(ROOT.parent / "humanize" / "scripts"))
 from build_business_corpus import download, words  # noqa: E402
 from extract_text import reflow  # noqa: E402
 

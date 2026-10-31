@@ -20,7 +20,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
-sys.path.insert(0, str(ROOT.parent / "ai-detect-humanize" / "scripts"))
+sys.path.insert(0, str(ROOT.parent / "humanize" / "scripts"))
 import pyarrow.parquet as pq  # noqa: E402
 from build_business_corpus import words  # noqa: E402
 from build_human_corpus import get  # noqa: E402

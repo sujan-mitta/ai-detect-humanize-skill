@@ -8,7 +8,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
 from sklearn.preprocessing import StandardScaler
 ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT.parent / "ai-detect-humanize" / "scripts"))
+sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT.parent / "humanize" / "scripts"))
 import external_eval as ee, calibrate as c, calibrate2 as c2, regression_floor as rf  # noqa: E402
 emb = dict(np.load(ROOT / "runs" / "emb_fakespot.npz"))
 rows = c.extract_features(c2.load_rows(True, True), True)

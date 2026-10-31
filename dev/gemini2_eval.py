@@ -5,7 +5,7 @@ import json, sys
 from pathlib import Path
 import numpy as np
 ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT.parent / "ai-detect-humanize" / "scripts"))
+sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT.parent / "humanize" / "scripts"))
 import ai_score, external_eval as ee, regression_floor as rf  # noqa: E402
 
 rows = json.load(open(ROOT / "runs" / "gemini2_rows.json", encoding="utf-8"))

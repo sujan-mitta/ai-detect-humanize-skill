@@ -21,7 +21,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 OUT = Path(__file__).parent / "corpus" / "human.jsonl"
-UA = {"User-Agent": "ai-detect-humanize-calibration/1.0 (research script)"}
+UA = {"User-Agent": "humanize-calibration/1.0 (research script)"}
 random.seed(7)
 
 

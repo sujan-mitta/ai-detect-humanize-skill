@@ -11,7 +11,7 @@ import argparse, json, re, sys
 from pathlib import Path
 import numpy as np
 ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT.parent / "ai-detect-humanize" / "scripts"))
+sys.path.insert(0, str(ROOT.parent / "humanize" / "scripts"))
 import perplexity as px  # noqa: E402
 import verify_rewrite as vr  # noqa: E402
 

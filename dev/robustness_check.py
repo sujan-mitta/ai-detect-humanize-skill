@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Live max-mode robustness: original vs homoglyph + zero-width attack vs typography edits vs hard-wrapped lines (4 API texts)."""
 import json, random, sys, textwrap
-sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent.parent / "ai-detect-humanize" / "scripts"))
+sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent.parent / "humanize" / "scripts"))
 import ai_score
 rows = json.load(open(__import__("pathlib").Path(__file__).resolve().parent / "runs" / "api_rows.json", encoding="utf-8"))
 random.seed(2)

@@ -7,7 +7,7 @@ import json, subprocess, sys
 from pathlib import Path
 import numpy as np
 ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT.parent / "ai-detect-humanize" / "scripts"))
+sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT.parent / "humanize" / "scripts"))
 import external_eval as ee  # noqa: E402
 B = ROOT / "corpus" / "humbench"
 split, variant = sys.argv[1], sys.argv[2]
@@ -22,7 +22,7 @@ for f, r in zip(files, rows):
     line = f"{f.name} {s:5.1f}"
     if variant != "orig":
         o = B / split / "orig" / f.name
-        p = subprocess.run([sys.executable, str(ROOT.parent / "ai-detect-humanize" / "scripts" / "verify_rewrite.py"), str(o), str(f)],
+        p = subprocess.run([sys.executable, str(ROOT.parent / "humanize" / "scripts" / "verify_rewrite.py"), str(o), str(f)],
                            capture_output=True, text=True, encoding="utf-8", errors="replace")
         ok += p.returncode == 0
         ratio = len(r["text"].split()) / max(1, len(o.read_text(encoding="utf-8").split()))

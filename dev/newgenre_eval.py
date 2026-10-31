@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT.parent / "ai-detect-humanize" / "scripts"))
+sys.path.insert(0, str(ROOT.parent / "humanize" / "scripts"))
 import ai_score  # noqa: E402
 
 ap = argparse.ArgumentParser()
