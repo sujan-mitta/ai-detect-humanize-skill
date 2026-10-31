@@ -1,11 +1,11 @@
 {
-  "name": "humanize-marketplace",
+  "name": "sujan-mitta-plugins",
   "owner": {
     "name": "sujan-mitta"
   },
   "plugins": [
     {
-      "name": "humanize",
+      "name": "ai-detect-humanize",
       "source": "./plugin",
       "description": "Detect AI-generated writing and rewrite it into natural, human-sounding prose. AI-likeness score with explanations, sentence heatmap, long-document chunking, PDF/Word/Markdown support and a fact-preservation check."
     }

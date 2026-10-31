@@ -12,10 +12,10 @@ MIT licensed. [Privacy](https://github.com/sujan-mitta/ai-detect-humanize-skill/
 
 ```
 /plugin marketplace add sujan-mitta/ai-detect-humanize-skill
-/plugin install humanize@humanize-marketplace
+/plugin install ai-detect-humanize@sujan-mitta-plugins
 ```
 
-One-step form on Claude Code 2.1.275 or later: `/plugin install humanize --marketplace sujan-mitta/ai-detect-humanize-skill`
+One-step form on Claude Code 2.1.275 or later: `/plugin install ai-detect-humanize --marketplace sujan-mitta/ai-detect-humanize-skill`
 
 ## What the skill runs
 
