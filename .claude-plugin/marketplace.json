@@ -1,0 +1,14 @@
+{
+  "name": "humanize-marketplace",
+  "owner": {
+    "name": "sujan-mitta"
+  },
+  "plugins": [
+    {
+      "name": "humanize",
+      "source": "./",
+      "description": "Detect AI-generated writing and rewrite it into natural, human-sounding prose. AI-likeness score with explanations, sentence heatmap, long-document chunking, PDF/Word/Markdown support and a fact-preservation check."
+    }
+  ],
+  "description": "Humanize: detect AI-generated writing and rewrite it into natural prose (Claude Code plugin)."
+}

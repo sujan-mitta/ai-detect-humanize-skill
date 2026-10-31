@@ -26,3 +26,4 @@ dev/skill_v0_snapshot/
 
 # the plugin manifest must be tracked
 !.claude-plugin/plugin.json
+!.claude-plugin/marketplace.json

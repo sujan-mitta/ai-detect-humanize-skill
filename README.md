@@ -131,10 +131,11 @@ The detection tasks (spotting a pasted chatbot answer, finding which of three fi
 
 ## Install
 
-**Claude Code (plugin install, once the plugin is listed):**
+**Claude Code (plugin, two commands):**
 
 ```
-/plugin install humanize --marketplace sujan-mitta/ai-detect-humanize-skill
+/plugin marketplace add sujan-mitta/ai-detect-humanize-skill
+/plugin install humanize@humanize-marketplace
 ```
 
 **Claude app (claude.ai / desktop):** download [`humanize.skill`](humanize.skill) and upload it under *Settings → Capabilities → Skills*.
