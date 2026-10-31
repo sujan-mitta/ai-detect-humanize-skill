@@ -29,3 +29,4 @@ dev/skill_v0_snapshot/
 !.claude-plugin/marketplace.json
 *.skill
 !plugin/.claude-plugin/plugin.json
+!plugin/skills/humanize/scripts/model/*.json

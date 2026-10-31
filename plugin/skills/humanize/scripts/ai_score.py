@@ -230,6 +230,11 @@ def load_models():
     global _MODELS
     if _MODELS is None:
         _MODELS = json.loads(MODEL_PATH.read_text(encoding="utf-8")) if MODEL_PATH.exists() else {}
+        # The shipped model.json is a small manifest: large components are stored as "@relative/path.json" and
+        # loaded from files next to it (every file stays under 1 MiB so it can be read and audited as plain text).
+        for key, val in list(_MODELS.items()):
+            if isinstance(val, str) and val.startswith("@"):
+                _MODELS[key] = json.loads((MODEL_PATH.parent / val[1:]).read_text(encoding="utf-8"))
     return _MODELS
 
 

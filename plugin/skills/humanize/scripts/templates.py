@@ -131,7 +131,8 @@ def top_templates(text, model, k=8):
 def main():
     import json
     from extract_text import extract
-    m = json.loads((Path(__file__).parent / "model.json").read_text(encoding="utf-8")).get("templates")
+    import ai_score
+    m = ai_score.load_models().get("templates")
     if not m:
         sys.exit("model.json has no template model yet (run dev/calibrate.py --write)")
     t = extract(sys.argv[1])
