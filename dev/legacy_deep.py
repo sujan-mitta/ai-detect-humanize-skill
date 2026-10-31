@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 from sklearn.metrics import roc_auc_score
 ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT.parent / "skills" / "humanize" / "scripts"))
+sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT.parent / "plugin" / "skills" / "humanize" / "scripts"))
 import calibrate as c, external_eval as ee, ai_score, legacy_head as lh  # noqa: E402
 
 NAMES = c.DEEP_FEATURES

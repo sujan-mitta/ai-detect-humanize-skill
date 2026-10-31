@@ -12,7 +12,7 @@ Usage: python dev/calibrate.py [--no-deep] [--write]
      - a logistic regression on style + deep features
    with per-genre and per-style breakdowns.
 4. With --write, fits on all training data and saves the models to
-   skills/humanize/scripts/model.json, which ai_score.py then uses.
+   plugin/skills/humanize/scripts/model.json, which ai_score.py then uses.
 
 The "extra" genre (emails, cover letters, LinkedIn...) has no human
 counterpart in the corpus, so it is held out of training and only reported
@@ -34,7 +34,7 @@ from sklearn.model_selection import StratifiedGroupKFold, StratifiedKFold
 from sklearn.preprocessing import StandardScaler
 
 ROOT = Path(__file__).resolve().parent
-SCRIPTS = ROOT.parent / "skills" / "humanize" / "scripts"
+SCRIPTS = ROOT.parent / "plugin" / "skills" / "humanize" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 import ai_score  # noqa: E402
 

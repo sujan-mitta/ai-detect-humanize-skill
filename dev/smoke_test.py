@@ -9,7 +9,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-SCRIPTS = Path(__file__).resolve().parent.parent / "skills" / "humanize" / "scripts"
+SCRIPTS = Path(__file__).resolve().parent.parent / "plugin" / "skills" / "humanize" / "scripts"
 AI = "Overall, it is important to note that this comprehensive approach plays a crucial role. " * 12
 FAILS = []
 

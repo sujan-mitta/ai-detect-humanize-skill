@@ -27,7 +27,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
-sys.path.insert(0, str(ROOT.parent / "skills" / "humanize" / "scripts"))
+sys.path.insert(0, str(ROOT.parent / "plugin" / "skills" / "humanize" / "scripts"))
 import calibrate as c  # noqa: E402
 import ai_score  # noqa: E402
 
@@ -84,7 +84,7 @@ def score(text):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model", default=str(ROOT.parent / "skills" / "humanize" / "scripts" / "model.json"))
+    ap.add_argument("--model", default=str(ROOT.parent / "plugin" / "skills" / "humanize" / "scripts" / "model.json"))
     ap.add_argument("--n", type=int, default=100)
     ap.add_argument("--plain", action="store_true",
                     help="only texts without markdown: flattening a list or bold label changes the "

@@ -14,5 +14,6 @@
     "writing",
     "skill"
   ],
-  "icon": "./.claude-plugin/icon.png"
+  "icon": "./.claude-plugin/icon.png",
+  "displayName": "AI Detect & Humanize"
 }

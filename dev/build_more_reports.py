@@ -20,7 +20,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
-sys.path.insert(0, str(ROOT.parent / "skills" / "humanize" / "scripts"))
+sys.path.insert(0, str(ROOT.parent / "plugin" / "skills" / "humanize" / "scripts"))
 import pyarrow.parquet as pq  # noqa: E402
 from build_business_corpus import words  # noqa: E402
 from build_human_corpus import get  # noqa: E402

@@ -15,7 +15,7 @@ desktop.ini
 # calibration corpus (downloaded / generated, not redistributed)
 dev/corpus/
 dev/runs/
-!skills/humanize/scripts/*.json
+!plugin/skills/humanize/scripts/*.json
 ai-detect-humanize-workspace/
 
 # raw research notes (the synthesized report in reports/ is committed)
@@ -27,3 +27,5 @@ dev/skill_v0_snapshot/
 # the plugin manifest must be tracked
 !.claude-plugin/plugin.json
 !.claude-plugin/marketplace.json
+*.skill
+!plugin/.claude-plugin/plugin.json

@@ -5,7 +5,7 @@ import json, random, sys
 from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
-sys.path.insert(0, str(ROOT.parent / "skills" / "humanize" / "scripts"))
+sys.path.insert(0, str(ROOT.parent / "plugin" / "skills" / "humanize" / "scripts"))
 import external_eval as ee  # noqa: E402
 random.seed(17)
 cache = ee.load_cache()

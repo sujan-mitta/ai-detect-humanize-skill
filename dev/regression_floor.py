@@ -13,12 +13,12 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-sys.path.insert(0, str(HERE.parent / "skills" / "humanize" / "scripts"))
+sys.path.insert(0, str(HERE.parent / "plugin" / "skills" / "humanize" / "scripts"))
 import ai_score  # noqa: E402
 import external_eval as ee  # noqa: E402
 import legacy_features as lf  # noqa: E402
 
-SHIPPED = HERE.parent / "skills" / "humanize" / "scripts" / "model.json"
+SHIPPED = HERE.parent / "plugin" / "skills" / "humanize" / "scripts" / "model.json"
 FAM = {"gpt4": ("gpt4o", "gpt4"), "gpt3.5": ("gpt-3.5-turbo", "gpt-35"), "llama3": ("llama3-70b", "llama3-8b"),
        "gemma": ("gemma2-9b-it", "gemma-7b-it"), "mixtral+cohere": ("mixtral-8x7b", "cohere")}
 

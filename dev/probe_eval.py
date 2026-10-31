@@ -10,7 +10,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
 from sklearn.preprocessing import StandardScaler
 ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT.parent / "skills" / "humanize" / "scripts"))
+sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT.parent / "plugin" / "skills" / "humanize" / "scripts"))
 import external_eval as ee, calibrate as c, calibrate2 as c2, regression_floor as rf  # noqa: E402
 Cval = float(sys.argv[1]) if len(sys.argv) > 1 else 0.05
 emb = dict(np.load(ROOT / "runs" / "emb_fakespot.npz"))

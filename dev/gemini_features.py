@@ -3,7 +3,7 @@
 import json, sys
 from pathlib import Path
 ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT.parent / "skills" / "humanize" / "scripts"))
+sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT.parent / "plugin" / "skills" / "humanize" / "scripts"))
 import external_eval as ee  # noqa: E402
 rows = []
 for f in sorted((ROOT / "corpus" / "gemini").glob("*/*.txt")):
