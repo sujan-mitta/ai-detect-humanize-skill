@@ -112,7 +112,7 @@ Fact preservation (`verify_rewrite.py`) passed on all of the iterative rewrites 
 
 ### End-to-end tests (with vs. without the skill)
 
-The 11 realistic requests in [`humanize/evals/`](humanize/evals) were each run twice by Claude Sonnet, once with the skill and once without, then graded against 64 checks:
+The 11 realistic requests in [`skills/humanize/evals/`](skills/humanize/evals) were each run twice by Claude Sonnet, once with the skill and once without, then graded against 64 checks:
 
 | | With skill | Without skill |
 |---|---|---|
@@ -136,7 +136,7 @@ The detection tasks (spotting a pasted chatbot answer, finding which of three fi
 **Claude Code:**
 
 ```bash
-cp -r humanize ~/.claude/skills/
+cp -r skills/humanize ~/.claude/skills/
 ```
 
 ```bash
@@ -160,14 +160,14 @@ Just ask Claude, for example:
 Or run the scripts yourself:
 
 ```bash
-python humanize/scripts/ai_score.py report.pdf --deep --report before.md --json before.json --html heatmap.html
-python humanize/scripts/chunk_text.py report.pdf --out work/chunks --words 900
+python skills/humanize/scripts/ai_score.py report.pdf --deep --report before.md --json before.json --html heatmap.html
+python skills/humanize/scripts/chunk_text.py report.pdf --out work/chunks --words 900
 # rewrite each chunk_NNN.txt into chunk_NNN.human.txt, then for each one:
-python humanize/scripts/verify_rewrite.py work/chunks/chunk_001.txt work/chunks/chunk_001.human.txt
-python humanize/scripts/build_output.py work/chunks --format docx -o report_humanized.docx
-python humanize/scripts/ai_score.py report_humanized.docx --compare before.json
-python humanize/scripts/html_report.py report_humanized.docx --compare report.pdf -o before_after.html
-python humanize/scripts/style_profile.py my_old_essay.txt my_emails.txt -o voice.json
+python skills/humanize/scripts/verify_rewrite.py work/chunks/chunk_001.txt work/chunks/chunk_001.human.txt
+python skills/humanize/scripts/build_output.py work/chunks --format docx -o report_humanized.docx
+python skills/humanize/scripts/ai_score.py report_humanized.docx --compare before.json
+python skills/humanize/scripts/html_report.py report_humanized.docx --compare report.pdf -o before_after.html
+python skills/humanize/scripts/style_profile.py my_old_essay.txt my_emails.txt -o voice.json
 ```
 
 ## How the scorer works
@@ -180,12 +180,13 @@ python humanize/scripts/style_profile.py my_old_essay.txt my_emails.txt -o voice
 6. **Flag mixed documents.** When some sections read as AI and others as human, the verdict says "mixed" and names the AI sections, instead of averaging them away.
 7. **Explain the score.** Each feature is reset to the typical value and the change in score is measured. The report then lists, for example, "fewer parentheses than typical human writing" or "more rule-of-three lists", and marks features a faithful rewrite can't change (numbers, names) as *(content)*.
 
-Claude also audits each text against [`references/ai-patterns.md`](humanize/references/ai-patterns.md), a catalog of how language models write. It covers vocabulary, sentence templates, grammar, rhythm, paragraph and document structure, formatting, tone, genre-specific tells, the tics models fall into when told to "sound human", and what the calibration data showed about newer models.
+Claude also audits each text against [`references/ai-patterns.md`](skills/humanize/references/ai-patterns.md), a catalog of how language models write. It covers vocabulary, sentence templates, grammar, rhythm, paragraph and document structure, formatting, tone, genre-specific tells, the tics models fall into when told to "sound human", and what the calibration data showed about newer models.
 
 ## Repository layout
 
 ```
-humanize/                # the skill
+.claude-plugin/plugin.json        # plugin manifest (for Anthropic's plugin directory)
+skills/humanize/                 # the skill
 ├── SKILL.md                       # instructions Claude follows
 ├── references/
 │   ├── ai-patterns.md             # catalog of AI writing patterns
@@ -209,7 +210,7 @@ dev/                               # tooling to rebuild the model
 ├── long_doc_test.py               # accuracy on long documents
 ├── humanize_bench.py              # measures humanizing results
 └── make_eval_cases.py             # generates eval case folders
-humanize.skill           # packaged skill for upload
+humanize.skill                     # packaged skill for upload to the Claude app
 ```
 
 The calibration corpus itself (`dev/corpus/`) isn't committed, since it contains third-party text. `python dev/build_human_corpus.py` re-downloads the human half.

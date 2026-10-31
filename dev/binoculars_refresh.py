@@ -12,7 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
-sys.path.insert(0, str(ROOT.parent / "humanize" / "scripts"))
+sys.path.insert(0, str(ROOT.parent / "skills" / "humanize" / "scripts"))
 import calibrate as c  # noqa: E402
 import neural  # noqa: E402
 

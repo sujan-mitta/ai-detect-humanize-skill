@@ -4,7 +4,7 @@ Usage: python dev/gemini_eval.py [--mode max|deep|style]"""
 import argparse, collections, statistics, sys
 from pathlib import Path
 ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT.parent / "humanize" / "scripts"))
+sys.path.insert(0, str(ROOT.parent / "skills" / "humanize" / "scripts"))
 import ai_score  # noqa: E402
 
 ap = argparse.ArgumentParser(); ap.add_argument("--mode", default="max"); ap.add_argument("--dir", default="gemini"); a = ap.parse_args()

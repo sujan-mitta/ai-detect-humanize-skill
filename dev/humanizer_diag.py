@@ -5,7 +5,7 @@ import json, sys
 from pathlib import Path
 import numpy as np
 ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT.parent / "humanize" / "scripts"))
+sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT.parent / "skills" / "humanize" / "scripts"))
 import external_eval as ee, calibrate as c  # noqa: E402
 H = ROOT / "corpus" / "heldout"
 rows = []

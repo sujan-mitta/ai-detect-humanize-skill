@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT.parent / "humanize" / "scripts"))
+sys.path.insert(0, str(ROOT.parent / "skills" / "humanize" / "scripts"))
 from extract_text import reflow  # noqa: E402
 
 PATH = ROOT / "corpus" / "human.jsonl"

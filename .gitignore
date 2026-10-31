@@ -15,7 +15,7 @@ desktop.ini
 # calibration corpus (downloaded / generated, not redistributed)
 dev/corpus/
 dev/runs/
-!humanize/scripts/*.json
+!skills/humanize/scripts/*.json
 ai-detect-humanize-workspace/
 
 # raw research notes (the synthesized report in reports/ is committed)

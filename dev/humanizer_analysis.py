@@ -19,7 +19,7 @@ from collections import defaultdict
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT.parent / "humanize" / "scripts"))
+sys.path.insert(0, str(ROOT.parent / "skills" / "humanize" / "scripts"))
 import ai_score  # noqa: E402
 
 STYLES = {"A": "evade detectors", "B": "humanize", "C": "paraphrase", "D": "casual rewrite",
@@ -76,7 +76,7 @@ def main():
     ap.add_argument("--models", default="style")
     args = ap.parse_args()
     kinds = args.models.split(",")
-    models = json.loads((ROOT.parent / "humanize" / "scripts" / "model.json").read_text(encoding="utf-8"))
+    models = json.loads((ROOT.parent / "skills" / "humanize" / "scripts" / "model.json").read_text(encoding="utf-8"))
 
     data = []
     for rewriter, style, src, new in pairs():

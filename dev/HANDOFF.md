@@ -3,7 +3,7 @@
 Read `dev/PLAN.md` first (goals, anti-memorisation gates, phases).
 
 ## Do NOT yet
-- Do **not** package or push. `humanize/scripts/model.json` is still the **older** v5 model (trained on uncleaned typography, no business genres). README/SKILL.md numbers describe that older model.
+- Do **not** package or push. `skills/humanize/scripts/model.json` is still the **older** v5 model (trained on uncleaned typography, no business genres). README/SKILL.md numbers describe that older model.
 - Nothing from this session's recent work is committed (last commit: 419dfe0 on main, which is also what is on GitHub).
 
 ## What changed in the working tree since 419dfe0 (uncommitted)

@@ -10,7 +10,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
-sys.path.insert(0, str(ROOT.parent / "humanize" / "scripts"))
+sys.path.insert(0, str(ROOT.parent / "skills" / "humanize" / "scripts"))
 import external_eval as ee  # noqa: E402
 import ai_score  # noqa: E402
 import legacy_features as lf  # noqa: E402

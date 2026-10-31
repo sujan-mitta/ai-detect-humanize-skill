@@ -4,7 +4,7 @@ Patches external_eval.score so regression_floor / api_eval / gemini2_eval / huma
 import json, runpy, sys
 from pathlib import Path
 ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT.parent / "humanize" / "scripts"))
+sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT.parent / "skills" / "humanize" / "scripts"))
 import external_eval as ee  # noqa: E402
 import ai_score  # noqa: E402
 A, B = sys.argv[1], sys.argv[2]

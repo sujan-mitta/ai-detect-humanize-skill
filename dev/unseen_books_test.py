@@ -21,7 +21,7 @@ from pathlib import Path
 import numpy as np
 
 ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT.parent / "humanize" / "scripts"))
+sys.path.insert(0, str(ROOT.parent / "skills" / "humanize" / "scripts"))
 import ai_score  # noqa: E402
 
 CACHE = ROOT / "runs" / "unseen_books.json"
@@ -74,7 +74,7 @@ def evaluate(items, model_path):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model", default=str(ROOT.parent / "humanize" / "scripts" / "model.json"))
+    ap.add_argument("--model", default=str(ROOT.parent / "skills" / "humanize" / "scripts" / "model.json"))
     ap.add_argument("--compare")
     args = ap.parse_args()
     items = json.loads(CACHE.read_text(encoding="utf-8")) if CACHE.exists() else build_cache()

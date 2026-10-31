@@ -28,7 +28,7 @@ import numpy as np
 from sklearn.metrics import roc_auc_score
 
 ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT.parent / "humanize" / "scripts"))
+sys.path.insert(0, str(ROOT.parent / "skills" / "humanize" / "scripts"))
 import ai_score  # noqa: E402
 
 EXT = ROOT / "corpus" / "external"
@@ -108,7 +108,7 @@ def tpr_at_fpr(p, y, fpr):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model", default=str(ROOT.parent / "humanize" / "scripts" / "model.json"))
+    ap.add_argument("--model", default=str(ROOT.parent / "skills" / "humanize" / "scripts" / "model.json"))
     ap.add_argument("--tiers", default="style,deep,max")
     ap.add_argument("--out", default="external_results")
     args = ap.parse_args()
