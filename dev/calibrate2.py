@@ -33,8 +33,39 @@ SCRIPTS = c.SCRIPTS
 EXT = ROOT / "corpus" / "external" / "coling_train.jsonl"
 
 
-def load_rows(external):
+def load_modern(rows):
+    """Public-dataset texts from modern generators (dev/corpus/ext2: Magpie, NYT-rewrite, OpenTuringBench) plus real human
+    formal text. Each AI generator is its own genre (so leave-one-genre-out holds a whole generator out); deep/neural features
+    exist only for the 30-per-source sample cached by dev/ext2_features.py, the rest train the style tier only."""
+    base = ROOT / "corpus" / "ext2"
+    for kind, label in (("ai", 1), ("human", 0)):
+        for d in sorted((base / kind).iterdir()):
+            if kind == "human" and d.name.startswith("arxiv"):
+                continue
+            for f in sorted(d.glob("*.txt")):
+                t = f.read_text(encoding="utf-8")
+                if len(t.split()) < 100:
+                    continue
+                rid = "modern/" + hashlib.md5(t.encode()).hexdigest()[:12]
+                rows.append({"text": t, "label": label, "genre": "x:m_" + (d.name if label else "human"), "style": "external",
+                             "source": f"modern:{kind}:{d.name}", "generator": d.name, "id": rid, "group": rid, "want_deep": False})
+    return rows
+
+
+def attach_modern_features(rows):
+    import external_eval as ee
+    cache = ee.load_cache()
+    for r in rows:
+        if r["id"].startswith("modern/"):
+            rec = cache.get(ee.key(r["text"]))
+            if rec and rec.get("deep") and rec.get("neural"):
+                r["deep"], r["neural"] = rec["deep"], rec["neural"]
+
+
+def load_rows(external, modern=False):
     rows = c.load_corpus()
+    if modern:
+        load_modern(rows)
     if external and EXT.exists():
         for l in EXT.read_text(encoding="utf-8").splitlines():
             r = json.loads(l)
@@ -135,6 +166,7 @@ def main():
     global PROTOCOL
     ap = argparse.ArgumentParser()
     ap.add_argument("--external", action="store_true")
+    ap.add_argument("--modern", action="store_true", help="also train on dev/corpus/ext2 (modern generators + real formal human text)")
     ap.add_argument("--write", action="store_true")
     ap.add_argument("--skip-max", action="store_true")
     ap.add_argument("--style-only", action="store_true", help="style tier only; no GPT-2/neural (cheap, safe to run beside other jobs)")
@@ -146,7 +178,9 @@ def main():
     args = ap.parse_args()
     PROTOCOL = "leave-one-genre-out" if args.protocol == "logo" else "grouped by source/author (genres seen)"
 
-    rows = c.extract_features(load_rows(args.external), not args.style_only)
+    rows = c.extract_features(load_rows(args.external, args.modern), not args.style_only)
+    if args.modern:
+        attach_modern_features(rows)
     train = [r for r in rows if r["genre"] != "extra"]
     extra = [r for r in rows if r["genre"] == "extra"]
     c.GROUPS = np.array([r["group"] for r in train])
